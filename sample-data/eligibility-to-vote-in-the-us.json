@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "title": "Eligibility to Vote in the US",
+    "description": "Simplified test to see whether a user is able to vote in the US"
+  },
+  "attributes": [
+    {
+      "id": "ageCheck",
+      "label": "Age Requirement",
+      "type": "number",
+      "min": 0,
+      "max": 150
+    },
+    {
+      "id": "citizenshipStatus",
+      "label": "Citizenship Status",
+      "type": "boolean"
+    },
+    {
+      "id": "felonyStatus",
+      "label": "Felony Status",
+      "type": "boolean"
+    }
+  ],
+  "start": "Q1",
+  "nodes": {
+    "Q1": {
+      "type": "decision",
+      "question": "Are they over 18?",
+      "fact": "ageCheck",
+      "operator": "greaterThanInclusive",
+      "value": 18,
+      "true": "Q2",
+      "false": "OUT_1"
+    },
+    "OUT_1": {
+      "type": "outcome",
+      "label": "Under 18",
+      "description": "Cannot vote when under the age of 18."
+    },
+    "Q2": {
+      "type": "decision",
+      "question": "Are they a US citizen?",
+      "fact": "citizenshipStatus",
+      "operator": "equal",
+      "value": true,
+      "true": "Q3",
+      "false": "OUT_2"
+    },
+    "Q3": {
+      "type": "decision",
+      "question": "Are they a convicted felon?",
+      "fact": "felonyStatus",
+      "operator": "equal",
+      "value": true,
+      "true": "OUT_3",
+      "false": "OUT_4"
+    },
+    "OUT_2": {
+      "type": "outcome",
+      "label": "Not a US Citizen",
+      "description": "Cannot vote when not a citizen of the US."
+    },
+    "OUT_3": {
+      "type": "outcome",
+      "label": "Convicted Felon",
+      "description": "Cannot vote if convicted of a felony. "
+    },
+    "OUT_4": {
+      "type": "outcome",
+      "label": "Can vote",
+      "description": "Over the age of 18, is a US citizen, is not a convicted felon. "
+    }
+  }
+}

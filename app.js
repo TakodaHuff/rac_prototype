@@ -300,7 +300,21 @@
 
     rules.attributes.forEach((attr, i) => {
       const row = el('tr');
-      row.appendChild(td(input(attr.id, (v) => { attr.id = v; renderNodesEditor(); renderJsonPreview(); })));
+      row.appendChild(td(input(attr.id, (v) => {
+        // Renaming an attribute's id here used to leave every node.fact
+        // that already pointed at the old id dangling — e.g. wire Q1 to
+        // "age", then rename the attribute to "ageCheck" for clarity, and
+        // Q1 silently keeps citing "age", an id that no longer exists.
+        // Carry the rename through to any node still referencing it.
+        const oldId = attr.id;
+        attr.id = v;
+        if (oldId && oldId !== v) {
+          Object.values(rules.nodes || {}).forEach((node) => {
+            if (node.type === 'decision' && node.fact === oldId) node.fact = v;
+          });
+        }
+        renderNodesEditor(); renderJsonPreview();
+      })));
       row.appendChild(td(input(attr.label, (v) => { attr.label = v; renderJsonPreview(); })));
       row.appendChild(td(select(['number', 'boolean', 'enum', 'string'], attr.type, (v) => { attr.type = v; renderAttributesEditor(); renderJsonPreview(); })));
       row.appendChild(td(attr.type === 'number' ? input(attr.min ?? '', (v) => { attr.min = v === '' ? undefined : Number(v); renderJsonPreview(); }, 'number') : el('span', { text: '—' })));
@@ -359,6 +373,14 @@
       }
     }));
     root.appendChild(addRow);
+
+    // The Start-node selector was only refreshed on a full tab render, never
+    // when a node was added or deleted here — so on a brand-new file, adding
+    // your first node left the dropdown showing it (a bare <select> defaults
+    // to highlighting an available option) while rules.start silently stayed
+    // "" underneath, all the way through to export. Refresh it every time
+    // the node list itself changes, not just on tab switch.
+    renderStartSelector();
   }
 
   function uniqueId(prefix, nodes) {
@@ -379,6 +401,19 @@
     // so changing either one re-renders the whole node list rather than
     // just updating in place.
     const refresh = () => { renderNodesEditor(); renderJsonPreview(); };
+
+    // Same visual/data desync as the Start-node selector: a <select> shows
+    // its first option as chosen whenever the bound value matches none of
+    // them, with no 'change' event to catch it. That happens here whenever
+    // node.fact points at an attribute id that no longer exists — most
+    // commonly because the attribute was renamed after this node was wired
+    // to it. The Variable dropdown would then quietly display the first
+    // declared attribute as if it were selected while node.fact (and the
+    // exported JSON) still held the old, dangling id. Snap them together.
+    if (attrOptions.length && !attrOptions.includes(node.fact)) {
+      node.fact = attrOptions[0];
+      renderJsonPreview();
+    }
 
     // Fixed 4-column grid, filled in this fixed order, so the layout is the
     // same for every node card instead of reflowing around content width:
@@ -525,6 +560,16 @@
     const root = $('#start-editor');
     root.innerHTML = '';
     const nodeIds = Object.keys(rules.nodes || {});
+    // A native <select> visually highlights the first option whenever the
+    // bound value doesn't match any of them — it never fires a 'change'
+    // event on its own, so rules.start (e.g. still '' on a brand-new file)
+    // silently stays wrong even though the dropdown looks like it already
+    // says "Q1". Snap the model to what's on screen, same as branchFields
+    // does for true/false targets, so the two can't drift apart.
+    if (!nodeIds.includes(rules.start)) {
+      const next = nodeIds[0] || '';
+      if (rules.start !== next) { rules.start = next; renderJsonPreview(); }
+    }
     root.appendChild(el('label', { text: 'Start node: ' }));
     root.appendChild(select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }));
   }
