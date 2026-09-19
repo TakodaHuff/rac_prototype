@@ -1,0 +1,35 @@
+{
+	"name": "Employee-Salary",
+	"attributes": [
+		{
+			"name": "designation",
+			"type": "string"
+		},
+		{
+			"name": "experience",
+			"type": "number"
+		}
+	],
+	"decisions": [
+		{
+			"conditions": {
+				"all": [
+					{
+						"fact": "designation",
+						"operator": "equal",
+						"value": "Manager"
+					},
+					{
+						"fact": "experience",
+						"operator": "greaterThan",
+						"value": 10
+					}
+				]
+			},
+			"event": {
+				"type": "Manager takes $5000 salary",
+				"params": {}
+			}
+		}
+	]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "rac-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rule-as-Code prototype (JSON track). Uses the real json-rules-engine npm package for condition evaluation, in Node and in the browser.",
+  "scripts": {
+    "build:engine": "node build-vendor.js",
+    "test": "node test-logic.js"
+  },
+  "dependencies": {
+    "json-rules-engine": "^7.3.1"
+  },
+  "devDependencies": {
+    "webpack": "^5.111.1"
+  }
+}

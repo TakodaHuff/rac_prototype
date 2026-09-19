@@ -1,0 +1,37 @@
+@use "../variables";
+
+body.light {
+    background: #fff;
+    color: variables.$form-label-color;
+}
+
+.light {
+    label {
+        color: variables.$form-label-color;
+    }
+
+    h1 {
+        color: variables.$title-bg-clr;
+    }
+
+    h3 {
+        color: variables.$page-title-color;
+    }
+
+    h4 {
+        color: variables.$form-label-color;
+    }
+
+    .tab {
+        color: variables.$form-label-color;
+
+        &.active {
+            color: variables.$title-bg-clr;
+        }
+    }
+
+    .panel-box-wrapper {
+        box-shadow: 1px 3px #eee;
+        color: #000;
+    }
+}

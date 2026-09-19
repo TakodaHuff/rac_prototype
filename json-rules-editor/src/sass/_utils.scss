@@ -1,0 +1,11 @@
+@use "variables";
+
+
+@mixin link {
+  background: variables.$btn-bg-clr;
+  border: 1px solid variables.$btn-bg-clr;
+  border-radius: 10px;
+  font-family: variables.$btn-font-family;
+  color: variables.$btn-color;
+  cursor: pointer;
+}

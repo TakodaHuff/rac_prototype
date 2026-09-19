@@ -1,0 +1,47 @@
+@use "../variables";
+
+body.md-blue
+{
+  background: variables.$body-clr-mdblue;
+  color: variables.$form-label-color-drk;
+}
+
+.md-blue {
+    label {
+        color: variables.$form-label-color-drk;
+    }
+
+    h1 {
+        color: variables.$title-color-drk;
+    }
+
+    h3 {
+        color: variables.$page-title-color-dark;
+    }
+
+    h4 {
+        color: variables.$form-label-color-drk;
+    }
+
+    a {
+        color: variables.$form-label-color-drk;
+    }
+
+    .tab {
+        color: variables.$form-label-color-drk;
+
+        &.active {
+            color: variables.$form-label-color-drk;
+        }
+    }
+
+    .panel-box-wrapper {
+        background-color: #fff;
+        box-shadow: none;
+        color: #000;
+
+        a {
+            color: variables.$link-color;
+        }
+    }
+}

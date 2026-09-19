@@ -1,0 +1,242 @@
+@use "../utils";
+@use "../variables";
+
+
+.nav-btn {
+  margin: 30px 0;
+}
+
+.nav-glass-btn {
+  @include utils.link;
+  font-size: variables.$btn-font-size;
+  height: 50px;
+  width: 300px;
+
+  &:hover {
+    background: variables.$btn-bg-clr-hover;  
+  }
+}
+
+.btn-container {
+  display: flex;
+  margin: {
+    right: 20px;
+    top: 20px;
+  }
+}
+
+.upload-panel {
+  .btn-container {
+    margin-top: 30px;
+  }
+}
+
+.btn-group {
+  display: flex;
+  margin-top: 10px;
+}
+
+.btn {
+  border-radius: 5px;
+  color: variables.$btn-color;
+  font-size: 16px;
+  font-family: variables.$form-font-family;
+  height: 45px;
+  outline:none;
+  padding-top: 0;
+  width: 140px;
+}
+
+a.btn.btn-lg.btn-primary {
+  border: 0;
+}
+
+.btn:hover {
+  cursor: pointer;
+}
+
+.btn:focus {
+  cursor: pointer;
+}
+
+.primary-btn {
+  background-color: variables.$primary-btn-color;
+  border: 1px solid variables.$primary-btn-color;
+}
+
+.primary-btn:focus {
+  background-color: #0f7965;
+  border: 1px solid #0f7965;
+}
+
+.cancel-btn {
+  background-color: variables.$cancel-btn-color;
+  border: 1px solid variables.$cancel-btn-color;
+}
+
+.cancel-btn:focus {
+  background-color: #405367;
+  border: 1px solid #405367;
+}
+
+.btn-success {
+  background-color: variables.$primary-btn-color;
+  border: 1px solid variables.$primary-btn-color;
+  line-height: 45px;
+  text-decoration: none;
+}
+
+.btn-link {
+  background-color: variables.$cancel-btn-color;
+  border: 1px solid variables.$cancel-btn-color;
+  line-height: 45px;
+  text-decoration: none;
+}
+
+.btn-danger {
+  background-color: variables.$danger;
+  border: 1px solid variables.$danger;
+  line-height: 45px;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: variables.$primary-btn-color;
+  border: 1px solid variables.$primary-btn-color;
+  line-height: 45px;
+  text-decoration: none;
+}
+
+.btn-dark {
+  background-color: variables.$button-dark;
+  border: 1px solid variables.$button-dark;
+}
+
+.btn-warning {
+  background-color: variables.$warning-btn;
+  border: 1px solid variables.$warning-btn;
+}
+
+.btn-warning:focus {
+  background-color: variables.$danger;  
+}
+
+.btn-toolbar {
+    background-color: variables.$toobar-btn-color;
+    border: 1px solid variables.$toobar-btn-color;
+    width: 100px;
+    height: 35px;
+}
+
+.btn-toolbar:focus {
+    background-color: variables.$form-field-color;
+}
+
+.btn-group-container {
+  display: flex;
+  flex-direction: row;
+
+  .btn-grp {
+    border: 1px solid variables.$form-field-color;
+    cursor: pointer;
+  }
+
+  .btn-grp:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+  }
+
+  .btn-grp:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+  }
+
+  button {
+    border: none;
+    border-radius: 5px;
+    background-color: #fff;
+    cursor: pointer;
+    font-family: variables.$form-font-family;
+    font-size: 13px;
+    height: 35px;
+    margin: 0;
+    outline:none;
+    padding: 10px;
+  }
+
+  &.dark {
+
+    .btn-grp {
+      border: 1px solid variables.$panel-bg-color;
+    }
+    button {
+      border-radius: 0;
+    }
+    button:hover {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button:focus {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button.active {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+  }
+
+  &.md-blue {
+
+    .btn-grp {
+      border: 1px solid variables.$panel-bg-color;
+    }
+    button {
+      border-radius: 0;
+    }
+    button:hover {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button:focus {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button.active {
+      background-color: variables.$primary-btn-color;
+      border-radius: 0;
+      color: #fff;
+    }
+  }
+
+  &.light {
+
+    .btn-grp {
+      border: 1px solid variables.$form-field-color;
+    }
+    button {
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: variables.$form-field-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button:focus {
+      background-color: variables.$form-field-color;
+      border-radius: 0;
+      color: #fff;
+    }
+    button.active {
+      background-color: variables.$form-field-color;
+      border-radius: 0;
+      color: #fff;
+    }
+
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "title": "Alcohol Purchase Eligibility (demo)",
+    "description": "Demo data.",
+    "legalSource": "Demo"
+  },
+  "attributes": [
+    {
+      "id": "age",
+      "label": "Age",
+      "type": "number",
+      "min": 0,
+      "max": 130,
+      "source": "Demo"
+    },
+    {
+      "id": "visibly_intoxicated",
+      "label": "Visibly intoxicated?",
+      "type": "boolean",
+      "source": "Demo"
+    }
+  ],
+  "start": "Q1",
+  "nodes": {
+    "Q1": {
+      "type": "decision",
+      "inputMode": "yesno",
+      "question": "20 years old or older?",
+      "fact": "age",
+      "operator": "greaterThanInclusive",
+      "value": 20,
+      "supportiveText": "At 20+, alcohol of any strength can be bought, subject to the intoxication check.",
+      "citation": "Demo §1",
+      "true": "Q2",
+      "false": "Q3"
+    },
+    "Q2": {
+      "type": "decision",
+      "question": "Visibly intoxicated?",
+      "fact": "visibly_intoxicated",
+      "operator": "equal",
+      "value": true,
+      "supportiveText": "Sale is refused to anyone visibly intoxicated, regardless of age.",
+      "citation": "Demo §2",
+      "true": "OUT_CannotBuy",
+      "false": "OUT_CanBuyAnywhere"
+    },
+    "Q3": {
+      "type": "decision",
+      "inputMode": "yesno",
+      "question": "18 years old or older?",
+      "fact": "age",
+      "operator": "greaterThanInclusive",
+      "value": 18,
+      "supportiveText": "18-19 year olds may only buy folk alcohol (low alcohol content).",
+      "citation": "Demo §3",
+      "true": "Q4",
+      "false": "OUT_CannotBuy"
+    },
+    "Q4": {
+      "type": "decision",
+      "question": "Visibly intoxicated?",
+      "fact": "visibly_intoxicated",
+      "operator": "equal",
+      "value": true,
+      "supportiveText": "Sale is refused to anyone visibly intoxicated, regardless of age.",
+      "citation": "Demo §2",
+      "true": "OUT_CannotBuy",
+      "false": "OUT_FolkOnly"
+    },
+    "OUT_CannotBuy": {
+      "type": "outcome",
+      "label": "Cannot buy alcohol",
+      "description": "The person may not purchase alcohol under these facts."
+    },
+    "OUT_CanBuyAnywhere": {
+      "type": "outcome",
+      "label": "Can buy alcohol anywhere",
+      "description": "The person may purchase alcohol of any strength."
+    },
+    "OUT_FolkOnly": {
+      "type": "outcome",
+      "label": "Can buy folk alcohol only",
+      "description": "The person may purchase only folk (low-alcohol) beverages."
+    }
+  }
+}
