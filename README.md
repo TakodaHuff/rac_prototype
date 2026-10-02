@@ -59,7 +59,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 
 - **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Ends with the outcome, a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
 - **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor. The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on edit (missing refs, missing outcomes, cycles, unreachable nodes). Edits stay in the browser — **Download JSON** saves them as `rules.json`; replace the file in the repo to make them permanent.
-- **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. Download CSV. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
+- **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
 
 ## rules.json schema
 

@@ -117,6 +117,15 @@
     $('#download-json').addEventListener('click', () => {
       download(RULES_URL, JSON.stringify(rules, null, 2));
     });
+    // Generated at click time, so it always reflects the current edits.
+    $('#download-csv').addEventListener('click', () => {
+      if (RaC.validateRules(rules).errors.length) {
+        alert('Fix the validation errors in the Build tab before downloading the test suite.');
+        return;
+      }
+      const csv = RaC.testSuiteToCSV(RaC.generateTestSuite(rules), rules.attributes || []);
+      download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
+    });
   }
 
   function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'rules'; }
@@ -947,13 +956,6 @@
     });
     table.appendChild(tbody);
     root.appendChild(table);
-
-    const dl = el('button', { class: 'btn btn-primary', text: 'Download CSV' });
-    dl.addEventListener('click', () => {
-      const csv = RaC.testSuiteToCSV(suite, rules.attributes || []);
-      download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
-    });
-    root.appendChild(dl);
   }
 
   // ---------------------------------------------------------------------
@@ -968,6 +970,7 @@
       $('#play-root').appendChild(el('div', { class: 'notice notice-error', text: e.message }));
       $('.tabs').hidden = true;
       $('#download-json').disabled = true;
+      $('#download-csv').disabled = true;
       return;
     }
     initTabs();
