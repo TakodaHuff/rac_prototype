@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rules as Code Prototype</title>
+<title>Control Balance Sheet Check – Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -124,7 +124,34 @@
     background: var(--accent);
     padding-block: 26px 22px;
   }
-  .header-inner { max-width: 1000px; margin: 0 auto; padding-inline: 16px; }
+  .header-inner { max-width: 1000px; margin: 0 auto; padding-inline: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+
+  /* View switch: "Check a rule" (default) vs "Author". */
+  .view-switch { display: inline-flex; border: 2px solid var(--accent-ink); border-radius: var(--radius); overflow: hidden; }
+  .view-btn {
+    border: none;
+    background: transparent;
+    color: var(--accent-ink);
+    padding: 7px 14px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .view-btn + .view-btn { border-left: 2px solid var(--accent-ink); }
+  .view-btn[aria-pressed="true"] { background: var(--accent-ink); color: var(--accent); }
+  .view-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
+  body.view-check .toolbar,
+  body.view-check .tabs,
+  body.view-check .author-only { display: none; }
+  .header-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--accent-ink);
+    opacity: 0.85;
+    margin-bottom: 4px;
+  }
   header h1 {
     margin: 0;
     font-family: var(--font-display);
@@ -199,6 +226,28 @@
   .supportive { color: var(--muted); font-size: 14px; margin-top: 0; }
   .answer-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 6px; }
   .field-error { color: var(--danger); font-size: 13px; min-height: 18px; }
+  .legal-source { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .legal-source a { color: var(--accent); font-weight: 600; }
+  .answers-list { padding-left: 20px; margin: 0 0 8px; font-size: 14px; }
+  .answers-list li { margin-bottom: 10px; }
+  .answers-list li::marker { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
+  .answers-q { display: block; }
+  .answers-a { display: inline-block; margin-top: 2px; color: var(--accent); }
+  .answers-list .legal-source { margin-top: 2px; font-size: 12px; }
+  .result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  .print-only { display: none; }
+  .answers-change { margin-left: 10px; padding: 0; font-size: 13px; }
+  .intro-text { margin: 0 0 12px; }
+  .intro-disclaimer { margin: 16px 0 0; }
+  .result-disclaimer { font-size: 12px; color: var(--muted); margin-top: 18px; }
+  .previous-note { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .btn-choice.is-previous { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .glossary { margin-top: 10px; font-size: 13px; }
+  .glossary summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+  .glossary-list { margin: 8px 0 0; padding: 10px 12px; background: var(--surface-2); border-radius: var(--radius); }
+  .glossary-list dt { font-weight: 600; }
+  .glossary-list dd { margin: 2px 0 8px; color: var(--muted); }
+  .glossary-list dd:last-child { margin-bottom: 0; }
 
   .btn {
     border: 2px solid var(--border);
@@ -324,6 +373,23 @@
   .field:has(input[type="checkbox"]:disabled) { color: var(--muted); opacity: 0.7; }
 
   .add-node-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  @keyframes node-flash { from { box-shadow: 0 0 0 4px var(--gold); } to { box-shadow: 0 0 0 4px transparent; } }
+  .node-card.flash { animation: node-flash 1.6s ease-out; }
+
+  #flowchart {
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 12px;
+    max-height: 70vh;
+    overflow: auto;
+  }
+  #flowchart svg { display: block; margin: 0 auto; }
+  #flowchart .fc-node-link { cursor: pointer; }
+  #flowchart .fc-node-link:hover rect,
+  #flowchart .fc-node-link:hover path.basic,
+  #flowchart .fc-node-link:focus-visible rect { stroke: var(--gold) !important; stroke-width: 3px !important; }
+  #flowchart .fc-node-link:focus { outline: none; }
 
   #json-preview {
     background: var(--code-bg);
@@ -354,22 +420,43 @@
   @media (max-width: 480px) {
     .toolbar, .tabs, main, .header-inner { padding-inline: 12px; }
   }
+
+  /* Print / save as PDF: just the result, in black on white. */
+  @media print {
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+      --bg: #ffffff; --surface: #ffffff; --surface-2: #f2f2f2; --border: #cccccc;
+      --text: #000000; --muted: #333333; --accent: #000000; --accent-ink: #ffffff;
+    }
+    @page { margin: 18mm; }
+    header, .toolbar, .tabs, .law-title, .no-print, .author-only { display: none !important; }
+    main { padding: 0; max-width: none; }
+    .card { border: none; padding: 0; max-width: none; }
+    .print-only { display: block; }
+    .print-head { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 18px; }
+    .print-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; }
+    .print-sub { font-size: 12px; color: #333; }
+    .outcome-badge { background: none; color: #000; border: 2px solid #000; }
+    .answers-list li { break-inside: avoid; }
+    a { color: #000 !important; text-decoration: none; }
+  }
 </style>
 </head>
-<body>
+<body class="view-check">
 
 <header>
   <div class="header-inner">
-    <h1>Rules as Code Prototype</h1>
+    <div>
+      <div class="header-eyebrow">Prototype · Chapter 25 Swedish Companies Act (aktiebolagslagen)</div>
+      <h1>Control Balance Sheet Check</h1>
+    </div>
+    <nav class="view-switch" aria-label="View">
+      <button class="view-btn" data-view="check" aria-pressed="true">Check a rule</button>
+      <button class="view-btn" data-view="author" aria-pressed="false">Author</button>
+    </nav>
   </div>
 </header>
 
 <div class="toolbar">
-  <button class="btn" id="new-rules">New</button>
-  <label class="btn" style="margin:0;">
-    Upload JSON
-    <input type="file" id="upload-json" accept="application/json" style="display:none;">
-  </label>
   <button class="btn btn-primary" id="download-json">Download JSON</button>
   <div class="spacer"></div>
   <span id="engine-status" class="engine-badge" title="Condition evaluation engine in use"></span>
@@ -399,18 +486,24 @@
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">3</span> Decision tree nodes</h3>
+      <h3><span class="step-num">3</span> Flowchart</h3>
+      <p class="supportive">The whole tree. Click a box to jump to that node below.</p>
+      <div id="flowchart"></div>
+    </section>
+
+    <section class="builder-block">
+      <h3><span class="step-num">4</span> Decision tree nodes</h3>
       <div id="start-editor"></div>
       <div id="nodes-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">4</span> Validation</h3>
+      <h3><span class="step-num">5</span> Validation</h3>
       <div id="validation-results"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">5</span> Raw JSON</h3>
+      <h3><span class="step-num">6</span> Raw JSON</h3>
       <pre id="json-preview"></pre>
     </section>
   </div>
@@ -422,7 +515,7 @@
 </main>
 
 <script src="vendor/json-rules-engine.bundle.js"></script>
-<script src="logic.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="logic.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

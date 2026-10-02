@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "title": "Control balance sheet and duty to liquidate (Ch. 25 ABL)",
+    "description": "Translated 1:1 from control-balance-sheet-decision-tree.bpmn. Node IDs are identical to the BPMN gateway/end-event IDs. Supportive texts are placeholders to be written by the group.",
+    "legalSource": "Aktiebolagslagen (2005:551) 25 kap. 13-20 §§",
+    "lawUrl": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/aktiebolagslag-2005551_sfs-2005-551/",
+    "intro": "This tool walks you through the rules on control balance sheets and the duty to liquidate in Chapter 25 of the Swedish Companies Act (aktiebolagslagen). Based on your answers, it shows which step of the process applies to the company and what follows from it.",
+    "audience": "Board members of Swedish limited companies (aktiebolag) whose equity may have fallen below half of the registered share capital, and the accountants, auditors and students who work with these rules.",
+    "disclaimer": "This tool gives general guidance only and is not legal advice. For a specific case, consult a lawyer or an accountant."
+  },
+  "attributes": [
+    { "id": "equity_below_half", "label": "Reason to believe equity is below half of the registered share capital?", "type": "boolean", "source": "25 kap. 13 § ABL" },
+    { "id": "enforcement_insufficient", "label": "Enforcement (Ch. 4 Enforcement Code) showed insufficient assets?", "type": "boolean", "source": "25 kap. 13 § ABL" },
+    { "id": "cbs_prepared_and_reviewed", "label": "Board prepared a control balance sheet and the auditor reviewed it?", "type": "boolean", "source": "25 kap. 13-14 §§ ABL" },
+    { "id": "cbs_full_equity", "label": "Control balance sheet shows equity ≥ registered share capital?", "type": "boolean", "source": "25 kap. 15 § ABL" },
+    { "id": "first_meeting_notice_issued", "label": "Board issued notice of the first control meeting?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "first_meeting_held_properly", "label": "First meeting held with balance sheet and auditor statement presented?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "first_meeting_resolves_liquidation", "label": "First control meeting resolves to liquidate?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "second_meeting_within_8_months", "label": "Second control meeting held within 8 months?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "new_cbs_prepared_reviewed_presented", "label": "New balance sheet prepared, reviewed and presented before the 2nd meeting?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "new_cbs_full_equity", "label": "New balance sheet shows equity ≥ registered share capital?", "type": "boolean", "source": "25 kap. 17 § ABL" },
+    { "id": "second_meeting_resolves_liquidation", "label": "Second control meeting resolves to liquidate?", "type": "boolean", "source": "25 kap. ABL" },
+    { "id": "failure_condition_met", "label": "Failure condition (a) or (b) under §17 met?", "type": "boolean", "source": "25 kap. 17 § ABL" },
+    { "id": "applied_to_court_within_2_weeks", "label": "Board applied to the district court within 2 weeks?", "type": "boolean", "source": "25 kap. 17, 20 §§ ABL" },
+    { "id": "court_shown_full_equity_cbs", "label": "Court shown a full-equity balance sheet, reviewed and presented at a meeting since?", "type": "boolean", "source": "25 kap. ABL" }
+  ],
+  "start": "G1",
+  "nodes": {
+    "G1": {
+      "type": "decision",
+      "question": "Is there reason to believe that the company's equity is below half of the registered share capital?",
+      "fact": "equity_below_half", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 13 § ABL",
+      "true": "G3", "false": "G2"
+    },
+    "G2": {
+      "type": "decision",
+      "question": "Has enforcement under Ch. 4 of the Enforcement Code shown that the company lacks sufficient assets?",
+      "fact": "enforcement_insufficient", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 13 § ABL",
+      "true": "G3", "false": "End_1"
+    },
+    "G3": {
+      "type": "decision",
+      "question": "Has the board prepared a control balance sheet and has the auditor reviewed it?",
+      "fact": "cbs_prepared_and_reviewed", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 13-14 §§ ABL",
+      "true": "G4", "false": "Liab_1"
+    },
+    "G4": {
+      "type": "decision",
+      "question": "Does the control balance sheet show that equity is at least equal to the registered share capital?",
+      "fact": "cbs_full_equity", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 15 § ABL",
+      "true": "End_2", "false": "G5"
+    },
+    "G5": {
+      "type": "decision",
+      "question": "Has the board issued notice of the first control meeting?",
+      "fact": "first_meeting_notice_issued", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "G6", "false": "Liab_2"
+    },
+    "G6": {
+      "type": "decision",
+      "question": "Was the first control meeting held, with the control balance sheet and the auditor's statement presented?",
+      "fact": "first_meeting_held_properly", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "G7", "false": "Liab_3"
+    },
+    "G7": {
+      "type": "decision",
+      "question": "Did the first control meeting resolve to put the company into liquidation?",
+      "fact": "first_meeting_resolves_liquidation", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "End_3", "false": "G8"
+    },
+    "G8": {
+      "type": "decision",
+      "question": "Was a second control meeting held within 8 months of the first?",
+      "fact": "second_meeting_within_8_months", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "G9", "false": "G12"
+    },
+    "G9": {
+      "type": "decision",
+      "question": "Before the second meeting, was a new control balance sheet prepared, reviewed by the auditor and presented?",
+      "fact": "new_cbs_prepared_reviewed_presented", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "G10", "false": "G12"
+    },
+    "G10": {
+      "type": "decision",
+      "question": "Does the new control balance sheet show that equity is at least equal to the registered share capital?",
+      "fact": "new_cbs_full_equity", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 17 § ABL",
+      "true": "End_4", "false": "G11"
+    },
+    "G11": {
+      "type": "decision",
+      "question": "Did the second control meeting resolve to put the company into liquidation?",
+      "fact": "second_meeting_resolves_liquidation", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "End_5", "false": "G12"
+    },
+    "G12": {
+      "type": "decision",
+      "question": "Is failure condition (a) or (b) under §17 met?",
+      "fact": "failure_condition_met", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. 17 § ABL",
+      "true": "G13", "false": "End_6"
+    },
+    "G13": {
+      "type": "decision",
+      "question": "Did the board apply to the district court for liquidation within 2 weeks?",
+      "fact": "applied_to_court_within_2_weeks", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext). If yes: personal liability ceases from the date of the application (§20).",
+      "citation": "25 kap. 17, 20 §§ ABL",
+      "true": "G14", "false": "Liab_4"
+    },
+    "G14": {
+      "type": "decision",
+      "question": "Has the court been shown a control balance sheet with full equity, reviewed by the auditor and presented at a general meeting since?",
+      "fact": "court_shown_full_equity_cbs", "operator": "equal", "value": true,
+      "supportiveText": "TODO (stödtext)",
+      "citation": "25 kap. ABL",
+      "true": "End_7", "false": "End_8"
+    },
+
+    "End_1": { "type": "outcome", "label": "No control balance sheet required (§13)", "description": "" },
+    "End_2": { "type": "outcome", "label": "Process ends – no control meeting required (§15)", "description": "" },
+    "End_3": { "type": "outcome", "label": "Liquidation follows from first meeting's resolution", "description": "" },
+    "End_4": { "type": "outcome", "label": "No duty to liquidate – capital restored (§17)", "description": "" },
+    "End_5": { "type": "outcome", "label": "Liquidation follows from second meeting's resolution", "description": "" },
+    "End_6": { "type": "outcome", "label": "No duty to liquidate – no failure condition (§17)", "description": "" },
+    "End_7": { "type": "outcome", "label": "No liquidation order issued", "description": "" },
+    "End_8": { "type": "outcome", "label": "District court orders liquidation (effective immediately)", "description": "" },
+    "Liab_1": { "type": "outcome", "label": "Possible personal liability (§18) – no control balance sheet", "description": "Outside scope." },
+    "Liab_2": { "type": "outcome", "label": "Possible personal liability (§18) – no notice of first meeting", "description": "Outside scope." },
+    "Liab_3": { "type": "outcome", "label": "Possible personal liability (§18) – procedural defect at first meeting", "description": "Outside scope." },
+    "Liab_4": { "type": "outcome", "label": "Possible personal liability (§18) – no timely court application", "description": "Outside scope." }
+  },
+  "glossary": [
+    { "term": "control balance sheet", "definition": "TODO (stödtext)" },
+    { "term": "control meeting", "definition": "TODO (stödtext)" },
+    { "term": "registered share capital", "definition": "TODO (stödtext)" },
+    { "term": "equity", "definition": "TODO (stödtext)" },
+    { "term": "liquidation", "definition": "TODO (stödtext)" },
+    { "term": "general meeting", "definition": "TODO (stödtext)" },
+    { "term": "district court", "definition": "TODO (stödtext)" },
+    { "term": "failure condition", "definition": "TODO (stödtext)" },
+    { "term": "Enforcement Code", "definition": "TODO (stödtext)" }
+  ]
+}
