@@ -3,41 +3,37 @@
   'use strict';
 
   // ---------------------------------------------------------------------
-  // Embedded demo data (also saved as sample-data/alcohol-rules.json so it
-  // works even when this file is opened directly with file:// and fetch()
-  // of a sibling file would be blocked).
+  // The rules live in one place: rules.json at the project root, fetched on
+  // startup. fetch() of a sibling file is blocked under file://, so the page
+  // has to be served (GitHub Pages, or `python3 -m http.server` locally).
   // ---------------------------------------------------------------------
-  const DEMO_RULES = {
-    meta: {
-      title: 'Alcohol Purchase Eligibility (demo)',
-      description: 'Demo data.',
-      legalSource: 'Demo'
-    },
-    attributes: [
-      { id: 'age', label: 'Age', type: 'number', min: 0, max: 130, source: 'Demo' },
-      { id: 'visibly_intoxicated', label: 'Visibly intoxicated?', type: 'boolean', source: 'Demo' }
-    ],
-    start: 'Q1',
-    nodes: {
-      Q1: { type: 'decision', inputMode: 'yesno', question: '20 years old or older?', fact: 'age', operator: 'greaterThanInclusive', value: 20, supportiveText: 'At 20+, alcohol of any strength can be bought, subject to the intoxication check.', citation: 'Demo §1', true: 'Q2', false: 'Q3' },
-      Q2: { type: 'decision', question: 'Visibly intoxicated?', fact: 'visibly_intoxicated', operator: 'equal', value: true, supportiveText: 'Sale is refused to anyone visibly intoxicated, regardless of age.', citation: 'Demo §2', true: 'OUT_CannotBuy', false: 'OUT_CanBuyAnywhere' },
-      Q3: { type: 'decision', inputMode: 'yesno', question: '18 years old or older?', fact: 'age', operator: 'greaterThanInclusive', value: 18, supportiveText: '18-19 year olds may only buy folk alcohol (low alcohol content).', citation: 'Demo §3', true: 'Q4', false: 'OUT_CannotBuy' },
-      Q4: { type: 'decision', question: 'Visibly intoxicated?', fact: 'visibly_intoxicated', operator: 'equal', value: true, supportiveText: 'Sale is refused to anyone visibly intoxicated, regardless of age.', citation: 'Demo §2', true: 'OUT_CannotBuy', false: 'OUT_FolkOnly' },
-      OUT_CannotBuy: { type: 'outcome', label: 'Cannot buy alcohol', description: 'The person may not purchase alcohol under these facts.' },
-      OUT_CanBuyAnywhere: { type: 'outcome', label: 'Can buy alcohol anywhere', description: 'The person may purchase alcohol of any strength.' },
-      OUT_FolkOnly: { type: 'outcome', label: 'Can buy folk alcohol only', description: 'The person may purchase only folk (low-alcohol) beverages.' }
-    }
-  };
+  const RULES_URL = 'rules.json';
 
-  const EMPTY_RULES = { meta: { title: 'Untitled rules', description: '' }, attributes: [], start: '', nodes: {} };
+  async function loadRules() {
+    let res;
+    try {
+      res = await fetch(RULES_URL, { cache: 'no-cache' });
+    } catch (e) {
+      if (location.protocol === 'file:') {
+        throw new Error('This page was opened as a file, so the browser blocks it from reading ' + RULES_URL +
+          '. Serve the project folder instead: run "python3 -m http.server" in it and open http://localhost:8000/.');
+      }
+      throw new Error('Could not load ' + RULES_URL + ': ' + e.message);
+    }
+    if (!res.ok) throw new Error('Could not load ' + RULES_URL + ' (HTTP ' + res.status + ').');
+    try {
+      return await res.json();
+    } catch (e) {
+      throw new Error(RULES_URL + ' is not valid JSON: ' + e.message);
+    }
+  }
 
   // ---------------------------------------------------------------------
   // Global state
   // ---------------------------------------------------------------------
-  let rules = clone(DEMO_RULES);
-  let playState = null; // { currentId, facts, history: [{nodeId, factId, value}] }
+  let rules = null; // set once rules.json has loaded
+  let playState = null; // { currentId, facts, history: [{nodeId, factId, value, answer, question, supportiveText, citation}] }
 
-  function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
   function el(tag, attrs, children) {
@@ -62,6 +58,39 @@
   }
 
   // ---------------------------------------------------------------------
+  // Views: "Check a rule" (default — just the questionnaire) and "Author"
+  // (adds the toolbar and the Build / Test suite tabs). The view lives in
+  // the URL hash, so #author can be bookmarked or shared.
+  // ---------------------------------------------------------------------
+  function isAuthorView() { return document.body.classList.contains('view-author'); }
+
+  function applyView() {
+    const author = location.hash === '#author';
+    document.body.classList.toggle('view-author', author);
+    document.body.classList.toggle('view-check', !author);
+    $all('.view-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === (author ? 'author' : 'check'))));
+    if (!author) {
+      // Only the questionnaire exists in the Check view.
+      $all('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'play'));
+      $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-play'));
+    }
+    if (rules) renderPlay(); // author-only parts of Play depend on the view
+  }
+
+  function initViewSwitch() {
+    $all('.view-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const hash = btn.dataset.view === 'author' ? '#author' : '';
+        if (location.hash === hash) return;
+        history.replaceState(null, '', hash || location.pathname + location.search);
+        applyView();
+      });
+    });
+    window.addEventListener('hashchange', applyView);
+    applyView();
+  }
+
+  // ---------------------------------------------------------------------
   // Tabs
   // ---------------------------------------------------------------------
   function initTabs() {
@@ -81,30 +110,21 @@
   // ---------------------------------------------------------------------
   // File load / save (shared across tabs)
   // ---------------------------------------------------------------------
+  // There's no upload: the site only ever runs rules.json. Edits made in the
+  // Build tab are downloaded under that same name, ready to replace the file
+  // in the repo.
   function initFileControls() {
-    $('#new-rules').addEventListener('click', () => {
-      if (!confirm('Start a new, empty rules file? Unsaved changes will be lost.')) return;
-      rules = clone(EMPTY_RULES);
-      afterRulesChanged();
-    });
-    $('#upload-json').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          rules = JSON.parse(reader.result);
-          afterRulesChanged();
-          alert('Loaded "' + file.name + '". Check the Build tab for validation results.');
-        } catch (err) {
-          alert('Could not parse that file as JSON:\n' + err.message);
-        }
-      };
-      reader.readAsText(file);
-      e.target.value = '';
-    });
     $('#download-json').addEventListener('click', () => {
-      download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '.json', JSON.stringify(rules, null, 2));
+      download(RULES_URL, JSON.stringify(rules, null, 2));
+    });
+    // Generated at click time, so it always reflects the current edits.
+    $('#download-csv').addEventListener('click', () => {
+      if (RaC.validateRules(rules).errors.length) {
+        alert('Fix the validation errors in the Build tab before downloading the test suite.');
+        return;
+      }
+      const csv = RaC.testSuiteToCSV(RaC.generateTestSuite(rules), rules.attributes || []);
+      download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
     });
   }
 
@@ -126,16 +146,16 @@
 
     const { errors } = RaC.validateRules(rules);
     if (errors.length) {
-      root.appendChild(el('div', { class: 'notice notice-error' }, [
-        el('strong', { text: 'This rules file has validation errors — fix them in the Build tab before playing:' }),
-        el('ul', {}, errors.map((e) => el('li', { text: e })))
-      ]));
+      root.appendChild(isAuthorView()
+        ? el('div', { class: 'notice notice-error' }, [
+          el('strong', { text: 'This rules file has validation errors — fix them in the Build tab before playing:' }),
+          el('ul', {}, errors.map((e) => el('li', { text: e })))
+        ])
+        : el('div', { class: 'notice notice-error', text: 'This rule can\'t be checked right now because its rules file has errors.' }));
       return;
     }
 
-    if (!playState) {
-      playState = { currentId: rules.start, facts: {}, history: [] };
-    }
+    if (!playState) playState = newPlayState(false);
 
     const node = rules.nodes[playState.currentId];
     const attributesById = {};
@@ -148,42 +168,41 @@
       root.insertBefore(el('h2', { class: 'law-title', text: rules.meta.title }), card);
     }
 
-    if (node.type === 'outcome') {
-      const outcomePath = playState.history.map((h) => h.nodeId).concat([playState.currentId]);
-      card.appendChild(el('div', { class: 'outcome-badge', text: node.label || playState.currentId }));
-      if (node.description) card.appendChild(el('p', { text: node.description }));
-      card.appendChild(el('h4', { text: 'Decision path' }));
-      card.appendChild(el('div', { class: 'path-trace', text: outcomePath.join('  →  ') }));
-
-      const trail = playState.history.filter((h) => h.supportiveText);
-      if (trail.length) {
-        card.appendChild(el('h4', { text: 'Relevant rules applied' }));
-        const ul = el('ul', { class: 'supportive-list' });
-        trail.forEach((h) => ul.appendChild(el('li', {}, [
-          el('strong', { text: (h.citation ? h.citation + ': ' : '') }),
-          document.createTextNode(h.supportiveText)
-        ])));
-        card.appendChild(ul);
-      }
-
-      card.appendChild(el('button', {
-        class: 'btn btn-primary', text: 'Start over', onclick: () => { playState = null; renderPlay(); }
-      }));
+    if (!playState.started) {
+      renderIntro(card);
       return;
     }
 
-    // progress
-    card.appendChild(el('div', { class: 'progress-note', text: 'Question ' + (playState.history.length + 1) }));
+    if (node.type === 'outcome') {
+      renderResult(card, node);
+      return;
+    }
+
+    // "of up to": the longest possible run of questions from here, since
+    // the actual count depends on the answers still to come.
+    const asked = playState.history.length;
+    card.appendChild(el('div', { class: 'progress-note', text: 'Question ' + (asked + 1) + ' of up to ' + (asked + remainingQuestions(playState.currentId)) }));
     card.appendChild(el('h3', { class: 'question', text: node.question || node.fact }));
-    if (node.supportiveText) card.appendChild(el('p', { class: 'supportive', text: node.supportiveText }));
+    const supportive = userText(node.supportiveText);
+    if (supportive) card.appendChild(el('p', { class: 'supportive', text: supportive }));
+    const source = legalSourceLine(node.citation);
+    if (source) card.appendChild(source);
+    const terms = glossaryFor([node.question, supportive].join(' '));
+    if (terms) card.appendChild(terms);
 
     const attribute = attributesById[node.fact];
+    // After "Back" or "Change", the answer given before is highlighted so
+    // unchanged questions can be re-confirmed quickly.
+    const previous = playState.previousAnswers[playState.currentId];
     const inputWrap = el('div', { class: 'answer-controls' });
     card.appendChild(inputWrap);
     const errorLine = el('div', { class: 'field-error' });
     card.appendChild(errorLine);
 
-    async function commit(value) {
+    // `answer` is what the user saw and picked ("Yes", "No", "42") — kept
+    // for the result summary, since a yes/no question may store a
+    // synthesized threshold value as the fact.
+    async function commit(value, answer) {
       // validate against the data dictionary before proceeding
       const err = validateFactValue(attribute, value);
       if (err) { errorLine.textContent = err; return; }
@@ -191,7 +210,8 @@
       try {
         const branch = await RaC.evaluateCondition(node, Object.assign({}, playState.facts, { [node.fact]: value }));
         playState.facts[node.fact] = value;
-        playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, supportiveText: node.supportiveText, citation: node.citation });
+        playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, answer, question: node.question || node.fact, supportiveText: node.supportiveText, citation: node.citation });
+        delete playState.previousAnswers[playState.currentId];
         playState.currentId = branch ? node.true : node.false;
         renderPlay();
       } catch (e) {
@@ -205,21 +225,21 @@
     } else if (node.inputMode === 'yesno') {
       // Ask the node's own condition directly as Yes/No instead of collecting
       // a raw value (e.g. "20 or older?" instead of a numeric age field).
-      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'Yes', onclick: () => commit(RaC.valueForBranch(node, true)) }));
-      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'No', onclick: () => commit(RaC.valueForBranch(node, false)) }));
+      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'Yes', onclick: () => commit(RaC.valueForBranch(node, true), 'Yes') }));
+      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'No', onclick: () => commit(RaC.valueForBranch(node, false), 'No') }));
     } else if (attribute.type === 'boolean') {
-      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'Yes', onclick: () => commit(true) }));
-      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'No', onclick: () => commit(false) }));
+      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'Yes', onclick: () => commit(true, 'Yes') }));
+      inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'No', onclick: () => commit(false, 'No') }));
     } else if (attribute.type === 'enum') {
       (attribute.values || []).forEach((v) => {
-        inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: String(v), onclick: () => commit(v) }));
+        inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: String(v), onclick: () => commit(v, String(v)) }));
       });
     } else if (attribute.type === 'number') {
       const input = el('input', { type: 'number', class: 'text-input', placeholder: attribute.label });
       if (typeof attribute.min === 'number') input.min = attribute.min;
       if (typeof attribute.max === 'number') input.max = attribute.max;
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
-      btn.addEventListener('click', () => commit(input.value === '' ? undefined : Number(input.value)));
+      btn.addEventListener('click', () => commit(input.value === '' ? undefined : Number(input.value), input.value));
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
       inputWrap.appendChild(input);
       inputWrap.appendChild(btn);
@@ -227,21 +247,191 @@
     } else {
       const input = el('input', { type: 'text', class: 'text-input', placeholder: attribute.label });
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
-      btn.addEventListener('click', () => commit(input.value));
+      btn.addEventListener('click', () => commit(input.value, input.value));
       inputWrap.appendChild(input);
       inputWrap.appendChild(btn);
     }
 
+    if (previous !== undefined) {
+      inputWrap.querySelectorAll('.btn-choice').forEach((b) => {
+        if (b.textContent === previous) {
+          b.classList.add('is-previous');
+          b.setAttribute('title', 'Your previous answer');
+        }
+      });
+      const field = inputWrap.querySelector('input');
+      if (field) field.value = previous;
+      card.appendChild(el('div', { class: 'previous-note', text: 'Your previous answer is highlighted.' }));
+    }
+
     if (playState.history.length) {
       card.appendChild(el('button', {
-        class: 'btn btn-link', text: '← Back', onclick: () => {
-          const last = playState.history.pop();
-          playState.currentId = last.nodeId;
-          delete playState.facts[last.factId];
-          renderPlay();
-        }
+        class: 'btn btn-link', text: '← Back', onclick: () => goBackTo(playState.history.length - 1)
       }));
     }
+  }
+
+  function newPlayState(started) {
+    return { started, currentId: rules.start, facts: {}, history: [], previousAnswers: {} };
+  }
+
+  // Return to the question at history[index], dropping it and every later
+  // answer. The dropped answers are remembered as highlights, so if the
+  // path stays the same the user only has to re-confirm them.
+  function goBackTo(index) {
+    const target = playState.history[index];
+    playState.history.slice(index).forEach((h) => { playState.previousAnswers[h.nodeId] = h.answer; });
+    playState.history = playState.history.slice(0, index);
+    playState.facts = {};
+    playState.history.forEach((h) => { playState.facts[h.factId] = h.value; });
+    playState.currentId = target.nodeId;
+    renderPlay();
+  }
+
+  // Shown before question 1: what the tool checks, who it's for, and that
+  // it isn't legal advice. Texts come from rules.json meta (intro,
+  // audience, disclaimer) so they can be edited with the rest of the rule.
+  function renderIntro(card) {
+    const meta = rules.meta || {};
+    const intro = userText(meta.intro);
+    const audience = userText(meta.audience);
+    const disclaimer = userText(meta.disclaimer);
+    if (intro) {
+      card.appendChild(el('h4', { text: 'What this tool checks' }));
+      card.appendChild(el('p', { class: 'intro-text', text: intro }));
+    }
+    if (audience) {
+      card.appendChild(el('h4', { text: 'Who it is for' }));
+      card.appendChild(el('p', { class: 'intro-text', text: audience }));
+    }
+    card.appendChild(el('p', { class: 'intro-text', text: 'You will answer up to ' + remainingQuestions(rules.start) + ' questions. Each one shows the part of the law it is based on.' }));
+    const source = legalSourceLine(null);
+    if (source) card.appendChild(source);
+    if (disclaimer) card.appendChild(el('div', { class: 'notice notice-info intro-disclaimer', text: disclaimer }));
+    card.appendChild(el('div', { class: 'result-actions' }, [
+      el('button', { class: 'btn btn-primary', text: 'Start', onclick: () => { playState.started = true; renderPlay(); } })
+    ]));
+  }
+
+  // Glossary terms (rules.json "glossary": [{ term, definition }]) that
+  // appear in the given text, as a collapsible list. Terms whose definition
+  // is still empty or a TODO placeholder are left out.
+  function glossaryFor(text) {
+    const lower = String(text || '').toLowerCase();
+    const found = (rules.glossary || []).filter((g) => {
+      if (!g.term || !userText(g.definition)) return false;
+      const re = new RegExp('\\b' + g.term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      return re.test(lower);
+    });
+    if (!found.length) return null;
+    const list = el('dl', { class: 'glossary-list' });
+    found.forEach((g) => {
+      list.appendChild(el('dt', { text: g.term }));
+      list.appendChild(el('dd', { text: userText(g.definition) }));
+    });
+    return el('details', { class: 'glossary' }, [
+      el('summary', { text: found.length === 1 ? 'What does "' + found[0].term + '" mean?' : 'Terms used in this question' }),
+      list
+    ]);
+  }
+
+  // The result card doubles as the printable record: the print stylesheet
+  // hides the site chrome and buttons and shows the .print-only header.
+  function renderResult(card, node) {
+    const meta = rules.meta || {};
+    card.appendChild(el('div', { class: 'print-only print-head' }, [
+      el('div', { class: 'print-title', text: meta.title || 'Result' }),
+      el('div', { class: 'print-sub', text: [meta.legalSource, 'Printed ' + new Date().toLocaleDateString()].filter(Boolean).join(' · ') })
+    ]));
+
+    card.appendChild(el('div', { class: 'outcome-badge', text: node.label || playState.currentId }));
+    const description = userText(node.description);
+    if (description) card.appendChild(el('p', { text: description }));
+
+    card.appendChild(el('h4', { text: 'Your answers' }));
+    const answers = el('ol', { class: 'answers-list' });
+    playState.history.forEach((h, i) => {
+      const li = el('li', {}, [
+        el('span', { class: 'answers-q', text: h.question }),
+        el('strong', { class: 'answers-a', text: h.answer }),
+        el('button', { class: 'btn btn-link answers-change no-print', text: 'Change', 'aria-label': 'Change answer to question ' + (i + 1), onclick: () => goBackTo(i) })
+      ]);
+      const source = legalSourceLine(h.citation);
+      if (source) li.appendChild(source);
+      answers.appendChild(li);
+    });
+    card.appendChild(answers);
+
+    const trail = playState.history.filter((h) => userText(h.supportiveText));
+    if (trail.length) {
+      card.appendChild(el('h4', { text: 'Relevant rules applied' }));
+      const ul = el('ul', { class: 'supportive-list' });
+      trail.forEach((h) => ul.appendChild(el('li', {}, [
+        el('strong', { text: (h.citation ? h.citation + ': ' : '') }),
+        document.createTextNode(userText(h.supportiveText))
+      ])));
+      card.appendChild(ul);
+    }
+
+    const outcomePath = playState.history.map((h) => h.nodeId).concat([playState.currentId]);
+    card.appendChild(el('div', { class: 'author-only' }, [
+      el('h4', { text: 'Decision path' }),
+      el('div', { class: 'path-trace', text: outcomePath.join('  →  ') })
+    ]));
+
+    const disclaimer = userText(meta.disclaimer);
+    if (disclaimer) card.appendChild(el('p', { class: 'result-disclaimer', text: disclaimer }));
+
+    card.appendChild(el('div', { class: 'result-actions no-print' }, [
+      el('button', { class: 'btn btn-primary', text: 'Start over', onclick: () => { playState = newPlayState(true); renderPlay(); } }),
+      el('button', { class: 'btn', text: 'Print / save as PDF', onclick: () => window.print() })
+    ]));
+  }
+
+  // Longest run of decision nodes from `id` to any outcome (rules are
+  // validated acyclic before play starts).
+  function remainingQuestions(id) {
+    const memo = {};
+    (function walk(nid) {
+      if (nid in memo) return memo[nid];
+      const n = rules.nodes[nid];
+      memo[nid] = !n || n.type !== 'decision' ? 0 : 1 + Math.max(walk(n.true), walk(n.false));
+      return memo[nid];
+    })(id);
+    return memo[id];
+  }
+
+  // Authors leave "TODO (stödtext)" placeholders in texts still to be
+  // written. Strip them so users only see real text — "TODO (stödtext). If
+  // yes: …" keeps the "If yes: …" part.
+  function userText(s) {
+    if (!s) return '';
+    return String(s).replace(/\bTODO\b(\s*\([^)]*\))?[.:]?\s*/g, '').trim();
+  }
+
+  // Citations like "25 kap. 13 § ABL" link to that paragraph of the law text
+  // on riksdagen.se, whose SFS pages anchor each paragraph as #K<kap>P<§>
+  // (and each chapter as #K<kap>). Ranges and lists ("13-14 §§", "17, 20 §§")
+  // link to their first paragraph. Without meta.lawUrl, the citation is
+  // shown as plain text.
+  function citationUrl(citation) {
+    const base = rules.meta && rules.meta.lawUrl;
+    if (!base) return null;
+    const m = /(\d+)\s*kap\.?(?:\s*(\d+))?/i.exec(citation || '');
+    if (!m) return base;
+    return base.split('#')[0] + '#K' + m[1] + (m[2] ? 'P' + m[2] : '');
+  }
+
+  // Falls back to the rule's overall legal source when a node has no
+  // citation of its own, so every question shows one.
+  function legalSourceLine(citation) {
+    const text = citation || (rules.meta && rules.meta.legalSource);
+    if (!text) return null;
+    const url = citationUrl(text);
+    return el('div', { class: 'legal-source' }, [
+      el('span', { text: 'Legal source: ' }),
+      url ? el('a', { href: url, target: '_blank', rel: 'noopener', text: text }) : el('span', { text: text })
+    ]);
   }
 
   function validateFactValue(attribute, value) {
@@ -274,7 +464,7 @@
     const root = $('#meta-editor');
     root.innerHTML = '';
     rules.meta = rules.meta || {};
-    const title = el('input', { type: 'text', class: 'text-input', placeholder: 'Law / provision title', value: rules.meta.title || '' });
+    const title = el('input', { type: 'text', class: 'text-input wide', placeholder: 'Law / provision title', value: rules.meta.title || '' });
     title.addEventListener('input', () => { rules.meta.title = title.value; renderJsonPreview(); });
     const desc = el('input', { type: 'text', class: 'text-input wide', placeholder: 'One-line description', value: rules.meta.description || '' });
     desc.addEventListener('input', () => { rules.meta.description = desc.value; renderJsonPreview(); });
@@ -282,6 +472,15 @@
     root.appendChild(title);
     root.appendChild(el('label', { text: 'Description' }));
     root.appendChild(desc);
+    root.appendChild(el('label', { text: 'Legal source' }));
+    root.appendChild(input(rules.meta.legalSource || '', (v) => { rules.meta.legalSource = v; renderJsonPreview(); }, null, 'wide'));
+    // Base URL of the law text; citations deep-link into it (see citationUrl).
+    [['intro', 'Intro: what this tool checks'], ['audience', 'Intro: who it is for'], ['disclaimer', 'Disclaimer (intro and result)']].forEach(([key, label]) => {
+      root.appendChild(el('label', { text: label }));
+      root.appendChild(input(rules.meta[key] || '', (v) => { rules.meta[key] = v; renderJsonPreview(); }, null, 'wide'));
+    });
+    root.appendChild(el('label', { text: 'Law text URL (riksdagen.se)' }));
+    root.appendChild(input(rules.meta.lawUrl || '', (v) => { rules.meta.lawUrl = v; renderJsonPreview(); }, 'url', 'wide'));
   }
 
   function renderAttributesEditor() {
@@ -390,7 +589,7 @@
   }
 
   function decisionNodeCard(id, node, attrOptions, nodeIds) {
-    const card = el('div', { class: 'node-card node-card-decision' });
+    const card = el('div', { class: 'node-card node-card-decision', 'data-node-id': id });
     card.appendChild(el('div', { class: 'node-card-head' }, [
       el('span', { class: 'node-id-badge', text: id }),
       el('button', { class: 'btn btn-danger-outline btn-sm', text: 'Delete node', onclick: () => { delete rules.nodes[id]; renderNodesEditor(); renderJsonPreview(); } })
@@ -514,7 +713,7 @@
   }
 
   function outcomeNodeCard(id, node) {
-    const card = el('div', { class: 'node-card node-card-outcome' });
+    const card = el('div', { class: 'node-card node-card-outcome', 'data-node-id': id });
     card.appendChild(el('div', { class: 'node-card-head' }, [
       el('span', { class: 'node-id-badge outcome', text: id }),
       el('button', { class: 'btn btn-danger-outline btn-sm', text: 'Delete node', onclick: () => { delete rules.nodes[id]; renderNodesEditor(); renderJsonPreview(); } })
@@ -598,6 +797,132 @@
 
   function renderJsonPreview() {
     $('#json-preview').textContent = JSON.stringify(rules, null, 2);
+    scheduleFlowchart();
+  }
+
+  // ---------------------------------------------------------------------
+  // Flowchart of the whole tree (Build tab). Mermaid does the layout — the
+  // tree has long edges that skip levels (e.g. G8 → G12), which a naive
+  // layered layout would draw straight through other boxes. It's loaded
+  // from the CDN only when the Build tab is first shown, so the Check view
+  // never pays for it.
+  // ---------------------------------------------------------------------
+  const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  let mermaidPromise = null;
+  let flowchartTimer = null;
+  let flowchartRenderCount = 0;
+
+  function loadMermaid() {
+    if (!mermaidPromise) {
+      mermaidPromise = import(MERMAID_URL).then((m) => m.default).catch((e) => { mermaidPromise = null; throw e; });
+    }
+    return mermaidPromise;
+  }
+
+  // Edits arrive per keystroke; redraw once typing pauses, and only while
+  // the Build tab is visible (switching to it re-renders anyway).
+  function scheduleFlowchart() {
+    clearTimeout(flowchartTimer);
+    if (!$('#tab-build').classList.contains('active')) return;
+    flowchartTimer = setTimeout(renderFlowchart, 300);
+  }
+
+  function mermaidLabel(text) {
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    const short = t.length > 70 ? t.slice(0, 67) + '…' : t;
+    return short.replace(/"/g, '#quot;').replace(/</g, '#lt;').replace(/>/g, '#gt;');
+  }
+
+  function flowchartSource(keyOf) {
+    const lines = ['flowchart TD'];
+    Object.entries(rules.nodes || {}).forEach(([id, node]) => {
+      const k = keyOf[id];
+      if (node.type === 'decision') {
+        lines.push('  ' + k + '["' + mermaidLabel(id + ': ' + (node.question || node.fact || '')) + '"]:::decision');
+      } else {
+        lines.push('  ' + k + '(["' + mermaidLabel(id + ': ' + (node.label || '')) + '"]):::outcome');
+      }
+    });
+    Object.entries(rules.nodes || {}).forEach(([id, node]) => {
+      if (node.type !== 'decision') return;
+      ['true', 'false'].forEach((branch) => {
+        if (keyOf[node[branch]]) lines.push('  ' + keyOf[id] + ' -->|' + branch + '| ' + keyOf[node[branch]]);
+      });
+    });
+    if (keyOf[rules.start]) lines.push('  class ' + keyOf[rules.start] + ' start');
+    return lines.join('\n');
+  }
+
+  async function renderFlowchart() {
+    const root = $('#flowchart');
+    const ids = Object.keys(rules.nodes || {});
+    if (!ids.length) { root.innerHTML = ''; root.appendChild(el('p', { class: 'supportive', text: 'No nodes yet.' })); return; }
+
+    // Node ids are free-form strings; give Mermaid safe keys and map back.
+    const keyOf = {}, idOf = {};
+    ids.forEach((id, i) => { keyOf[id] = 'n' + i; idOf['n' + i] = id; });
+
+    let mermaid;
+    try {
+      mermaid = await loadMermaid();
+    } catch (e) {
+      root.innerHTML = '';
+      root.appendChild(el('div', { class: 'notice notice-warn', text: 'The flowchart needs the Mermaid library from cdn.jsdelivr.net, which could not be loaded. Check the internet connection.' }));
+      return;
+    }
+
+    // Colors come from the page's own tokens so light and dark mode match.
+    const css = getComputedStyle(document.documentElement);
+    const v = (name) => css.getPropertyValue(name).trim();
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      themeVariables: {
+        fontFamily: v('--font-body'), fontSize: '13px',
+        primaryColor: v('--surface'), primaryBorderColor: v('--border'), primaryTextColor: v('--text'),
+        lineColor: v('--muted'), edgeLabelBackground: v('--bg'), textColor: v('--text'),
+      },
+      flowchart: { curve: 'basis', nodeSpacing: 30, rankSpacing: 40 },
+    });
+
+    const source = flowchartSource(keyOf) + '\n' +
+      '  classDef decision fill:' + v('--surface') + ',stroke:' + v('--accent') + ',stroke-width:1.5px,color:' + v('--text') + '\n' +
+      '  classDef outcome fill:' + v('--accent-soft') + ',stroke:' + v('--accent-soft-border') + ',color:' + v('--text') + '\n' +
+      '  classDef start stroke-width:3px';
+
+    try {
+      const { svg } = await mermaid.render('flowchart-svg-' + (++flowchartRenderCount), source);
+      root.innerHTML = svg;
+    } catch (e) {
+      root.innerHTML = '';
+      root.appendChild(el('div', { class: 'notice notice-warn', text: 'Could not draw the flowchart: ' + e.message }));
+      return;
+    }
+
+    // Mermaid gives each node group an id like "…-flowchart-n3-0".
+    $all('g.node', root).forEach((g) => {
+      const m = /flowchart-(n\d+)-/.exec(g.id);
+      const nodeId = m && idOf[m[1]];
+      if (!nodeId) return;
+      g.classList.add('fc-node-link');
+      g.setAttribute('tabindex', '0');
+      g.setAttribute('role', 'link');
+      g.setAttribute('aria-label', 'Edit node ' + nodeId);
+      g.addEventListener('click', () => jumpToNodeCard(nodeId));
+      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpToNodeCard(nodeId); } });
+    });
+  }
+
+  function jumpToNodeCard(nodeId) {
+    const card = $all('.node-card').find((c) => c.dataset.nodeId === nodeId);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('flash');
+    void card.offsetWidth; // restart the animation on repeated clicks
+    card.classList.add('flash');
+    const first = card.querySelector('input, select');
+    if (first) first.focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------------
@@ -631,25 +956,28 @@
     });
     table.appendChild(tbody);
     root.appendChild(table);
-
-    const dl = el('button', { class: 'btn btn-primary', text: 'Download CSV' });
-    dl.addEventListener('click', () => {
-      const csv = RaC.testSuiteToCSV(suite, rules.attributes || []);
-      download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
-    });
-    root.appendChild(dl);
   }
 
   // ---------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    initViewSwitch();
+    initEngineBadge();
+    try {
+      rules = await loadRules();
+    } catch (e) {
+      $('#play-root').appendChild(el('div', { class: 'notice notice-error', text: e.message }));
+      $('.tabs').hidden = true;
+      $('#download-json').disabled = true;
+      $('#download-csv').disabled = true;
+      return;
+    }
     initTabs();
     initFileControls();
     renderPlay();
     renderBuild();
     renderTests();
-    initEngineBadge();
   });
 
   function initEngineBadge() {
