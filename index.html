@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control Balance Sheet Check – Prototype</title>
+<script>
+  // Apply any saved theme override before the stylesheet below is parsed,
+  // so there's no flash of the wrong theme. No saved override means no
+  // attribute is set, so :root keeps following prefers-color-scheme.
+  (function () {
+    try {
+      var saved = localStorage.getItem('rac-theme');
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    } catch (e) { /* localStorage unavailable; falls back to OS preference */ }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -141,6 +154,29 @@
   .view-btn + .view-btn { border-left: 2px solid var(--accent-ink); }
   .view-btn[aria-pressed="true"] { background: var(--accent-ink); color: var(--accent); }
   .view-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
+
+  /* Theme toggle: compact icon button, same border/radius language as the
+     view switch so it reads as part of the same control cluster. */
+  .header-actions { display: inline-flex; align-items: center; gap: 10px; }
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border: 2px solid var(--accent-ink);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  .theme-toggle:hover { background: rgba(255, 255, 255, 0.15); }
+  .theme-toggle:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  /* The [hidden] UA rule doesn't reliably hide inline <svg> in every
+     browser, so force it explicitly for the two icon states. */
+  .theme-toggle svg[hidden] { display: none; }
   body.view-check .toolbar,
   body.view-check .tabs,
   body.view-check .author-only { display: none; }
@@ -449,10 +485,28 @@
       <div class="header-eyebrow">Prototype · Chapter 25 Swedish Companies Act (aktiebolagslagen)</div>
       <h1>Control Balance Sheet Check</h1>
     </div>
-    <nav class="view-switch" aria-label="View">
-      <button class="view-btn" data-view="check" aria-pressed="true">Check a rule</button>
-      <button class="view-btn" data-view="author" aria-pressed="false">Author</button>
-    </nav>
+    <div class="header-actions">
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4"></circle>
+          <line x1="12" y1="2" x2="12" y2="4"></line>
+          <line x1="12" y1="20" x2="12" y2="22"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="2" y1="12" x2="4" y2="12"></line>
+          <line x1="20" y1="12" x2="22" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" hidden>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <nav class="view-switch" aria-label="View">
+        <button class="view-btn" data-view="check" aria-pressed="true">Check a rule</button>
+        <button class="view-btn" data-view="author" aria-pressed="false">Author</button>
+      </nav>
+    </div>
   </div>
 </header>
 
@@ -516,7 +570,7 @@
 </main>
 
 <script src="vendor/json-rules-engine.bundle.js"></script>
-<script src="logic.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="logic.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
