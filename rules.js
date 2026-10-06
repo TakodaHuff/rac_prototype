@@ -1,4 +1,6 @@
-{
+// GENERATED FILE — do not edit by hand.
+// Run "npm run build:rules" after changing rules.json to regenerate this.
+window.RAC_RULES = {
   "meta": {
     "title": "Control balance sheet and duty to liquidate (Ch. 25 ABL)",
     "description": "Translated 1:1 from control-balance-sheet-website-v2.bpmn. Node IDs are identical to that BPMN file's gateway/end-event IDs, and every true/false target below follows its sequenceFlow sourceRef/targetRef exactly.",
@@ -80,3 +82,4 @@
     "End_9": { "type": "outcome", "label": "No compulsory liquidation", "description": "No compulsory liquidation (Ch. 25 Sec. 17 Companies Act)." }
   }
 }
+;

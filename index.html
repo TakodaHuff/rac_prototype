@@ -413,14 +413,46 @@
   .node-card.flash { animation: node-flash 1.6s ease-out; }
 
   #flowchart {
+    position: relative;
     border: 2px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
     padding: 12px;
     max-height: 70vh;
-    overflow: auto;
+    overflow: hidden;
+    touch-action: none;
+    cursor: grab;
   }
-  #flowchart svg { display: block; margin: 0 auto; }
+  #flowchart.is-panning { cursor: grabbing; }
+  #flowchart .flowchart-viewport { width: max-content; transform-origin: 0 0; }
+  #flowchart .flowchart-viewport svg { display: block; margin: 0 auto; }
+  #flowchart .flowchart-zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #flowchart .flowchart-zoom-controls button {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+  }
+  #flowchart .flowchart-zoom-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  #flowchart .flowchart-zoom-controls button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   #flowchart .fc-node-link { cursor: pointer; }
   #flowchart .fc-node-link:hover rect,
   #flowchart .fc-node-link:hover path.basic,
@@ -511,6 +543,11 @@
 </header>
 
 <div class="toolbar">
+  <button class="btn" id="new-rules">New</button>
+  <label class="btn" style="margin:0;">
+    Upload JSON
+    <input type="file" id="upload-json" accept="application/json" style="display:none;">
+  </label>
   <button class="btn btn-primary" id="download-json">Download JSON</button>
   <button class="btn btn-primary" id="download-csv" title="Download the test suite as a CSV file">Download CSV</button>
   <div class="spacer"></div>
@@ -570,7 +607,8 @@
 </main>
 
 <script src="vendor/json-rules-engine.bundle.js"></script>
-<script src="logic.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="rules.js?v=1"></script>
+<script src="logic.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

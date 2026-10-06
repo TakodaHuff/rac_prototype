@@ -4,23 +4,48 @@
 
   // ---------------------------------------------------------------------
   // The rules live in one place: rules.json at the project root, fetched on
-  // startup. fetch() of a sibling file is blocked under file://, so the page
-  // has to be served (GitHub Pages, or `python3 -m http.server` locally).
+  // startup. fetch() of a sibling file is blocked under file://, so when the
+  // page is opened directly (not served) this falls back to rules.js — a
+  // generated snapshot of the same data, loaded as a plain <script> tag,
+  // which file:// does allow. Run `npm run build:rules` after editing
+  // rules.json to regenerate that fallback; served contexts (GitHub Pages,
+  // `python3 -m http.server`) always get the live rules.json itself.
   // ---------------------------------------------------------------------
   const RULES_URL = 'rules.json';
+
+  const EMPTY_RULES = {
+    meta: { title: 'Untitled rules', description: '' },
+    attributes: [],
+    start: '',
+    nodes: {}
+  };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function bundledFallback() {
+    return (typeof window !== 'undefined' && window.RAC_RULES && typeof window.RAC_RULES === 'object')
+      ? clone(window.RAC_RULES)
+      : null;
+  }
 
   async function loadRules() {
     let res;
     try {
       res = await fetch(RULES_URL, { cache: 'no-cache' });
     } catch (e) {
+      const fallback = bundledFallback();
+      if (fallback) return fallback;
       if (location.protocol === 'file:') {
         throw new Error('This page was opened as a file, so the browser blocks it from reading ' + RULES_URL +
           '. Serve the project folder instead: run "python3 -m http.server" in it and open http://localhost:8000/.');
       }
       throw new Error('Could not load ' + RULES_URL + ': ' + e.message);
     }
-    if (!res.ok) throw new Error('Could not load ' + RULES_URL + ' (HTTP ' + res.status + ').');
+    if (!res.ok) {
+      const fallback = bundledFallback();
+      if (fallback) return fallback;
+      throw new Error('Could not load ' + RULES_URL + ' (HTTP ' + res.status + ').');
+    }
     try {
       return await res.json();
     } catch (e) {
@@ -157,6 +182,27 @@
   // Build tab are downloaded under that same name, ready to replace the file
   // in the repo.
   function initFileControls() {
+    $('#new-rules').addEventListener('click', () => {
+      if (!confirm('Start a new, empty rules file? Unsaved changes will be lost.')) return;
+      rules = clone(EMPTY_RULES);
+      afterRulesChanged();
+    });
+    $('#upload-json').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          rules = JSON.parse(reader.result);
+          afterRulesChanged();
+          alert('Loaded "' + file.name + '". Check the Build tab for validation results.');
+        } catch (err) {
+          alert('Could not parse that file as JSON:\n' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
     $('#download-json').addEventListener('click', () => {
       download(RULES_URL, JSON.stringify(rules, null, 2));
     });
@@ -854,6 +900,75 @@
   let mermaidPromise = null;
   let flowchartTimer = null;
   let flowchartRenderCount = 0;
+  // Default zoomed-in further than 1:1 so the node text is readable right
+  // away on a tree this size; Reset returns to this, not to a neutral 1x.
+  const FLOWCHART_DEFAULT_SCALE = 1.6;
+  const FLOWCHART_MIN_SCALE = 0.3;
+  const FLOWCHART_MAX_SCALE = 6;
+  let flowchartView = { scale: FLOWCHART_DEFAULT_SCALE, x: 0, y: 0 };
+
+  function clampFlowchartScale(s) { return Math.min(FLOWCHART_MAX_SCALE, Math.max(FLOWCHART_MIN_SCALE, s)); }
+
+  function applyFlowchartTransform() {
+    const viewport = $('#flowchart .flowchart-viewport');
+    if (!viewport) return;
+    viewport.style.transform = 'translate(' + flowchartView.x + 'px, ' + flowchartView.y + 'px) scale(' + flowchartView.scale + ')';
+  }
+
+  function zoomFlowchart(factor) {
+    flowchartView.scale = clampFlowchartScale(flowchartView.scale * factor);
+    applyFlowchartTransform();
+  }
+
+  function resetFlowchartView() {
+    flowchartView = { scale: FLOWCHART_DEFAULT_SCALE, x: 0, y: 0 };
+    applyFlowchartTransform();
+  }
+
+  // One-time wiring for drag-to-pan, wheel-to-zoom, and the zoom buttons —
+  // #flowchart itself is a fixed container (only its contents get replaced
+  // on each renderFlowchart() call), so these listeners are attached once.
+  function initFlowchartPanZoom() {
+    const container = $('#flowchart');
+    if (!container) return;
+
+    let dragging = false;
+    let moved = false;
+    let startX = 0, startY = 0, startViewX = 0, startViewY = 0;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || !$('.flowchart-viewport', container)) return;
+      dragging = true;
+      moved = false;
+      startX = e.clientX; startY = e.clientY;
+      startViewX = flowchartView.x; startViewY = flowchartView.y;
+      container.classList.add('is-panning');
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      flowchartView.x = startViewX + dx;
+      flowchartView.y = startViewY + dy;
+      applyFlowchartTransform();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      container.classList.remove('is-panning');
+      if (moved) {
+        // Swallow the click that follows a drag, in the capturing phase, so
+        // it never reaches a node's own click-to-jump listener.
+        const swallow = (e) => { e.stopPropagation(); e.preventDefault(); container.removeEventListener('click', swallow, true); };
+        container.addEventListener('click', swallow, true);
+      }
+    });
+    container.addEventListener('wheel', (e) => {
+      if (!$('.flowchart-viewport', container)) return;
+      e.preventDefault();
+      zoomFlowchart(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    }, { passive: false });
+  }
 
   function loadMermaid() {
     if (!mermaidPromise) {
@@ -934,14 +1049,26 @@
       '  classDef outcome fill:' + v('--accent-soft') + ',stroke:' + v('--accent-soft-border') + ',color:' + v('--text') + '\n' +
       '  classDef start stroke-width:3px';
 
+    let svg;
     try {
-      const { svg } = await mermaid.render('flowchart-svg-' + (++flowchartRenderCount), source);
-      root.innerHTML = svg;
+      ({ svg } = await mermaid.render('flowchart-svg-' + (++flowchartRenderCount), source));
     } catch (e) {
       root.innerHTML = '';
       root.appendChild(el('div', { class: 'notice notice-warn', text: 'Could not draw the flowchart: ' + e.message }));
       return;
     }
+
+    root.innerHTML = '';
+    const viewport = el('div', { class: 'flowchart-viewport' });
+    viewport.innerHTML = svg;
+    root.appendChild(viewport);
+    const controls = el('div', { class: 'flowchart-zoom-controls' }, [
+      el('button', { type: 'button', 'aria-label': 'Zoom in', title: 'Zoom in', text: '+', onclick: () => zoomFlowchart(1.25) }),
+      el('button', { type: 'button', 'aria-label': 'Zoom out', title: 'Zoom out', text: '\u2212', onclick: () => zoomFlowchart(1 / 1.25) }),
+      el('button', { type: 'button', 'aria-label': 'Reset zoom and position', title: 'Reset view', text: '\u2922', onclick: () => resetFlowchartView() }),
+    ]);
+    root.appendChild(controls);
+    applyFlowchartTransform();
 
     // Mermaid gives each node group an id like "…-flowchart-n3-0".
     $all('g.node', root).forEach((g) => {
@@ -1007,6 +1134,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     initViewSwitch();
     initThemeToggle();
+    initFlowchartPanZoom();
     initEngineBadge();
     try {
       rules = await loadRules();
