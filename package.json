@@ -5,6 +5,7 @@
   "description": "Rule-as-Code prototype (JSON track). Uses the real json-rules-engine npm package for condition evaluation, in Node and in the browser.",
   "scripts": {
     "build:engine": "node build-vendor.js",
+    "build:rules": "node build-rules.js",
     "test": "node test-logic.js"
   },
   "dependencies": {
