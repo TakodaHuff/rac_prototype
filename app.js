@@ -91,6 +91,49 @@
   }
 
   // ---------------------------------------------------------------------
+  // Theme toggle (light / dark). A saved choice overrides the OS setting;
+  // with no saved choice, the toggle just tracks prefers-color-scheme.
+  // ---------------------------------------------------------------------
+  function initThemeToggle() {
+    const btn = $('#theme-toggle');
+    if (!btn) return;
+    const sunIcon = $('.icon-sun', btn);
+    const moonIcon = $('.icon-moon', btn);
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function getStored() {
+      try { return localStorage.getItem('rac-theme'); } catch (e) { return null; }
+    }
+    function isDarkActive() {
+      const stored = getStored();
+      if (stored === 'dark') return true;
+      if (stored === 'light') return false;
+      return mql.matches;
+    }
+    function render() {
+      const dark = isDarkActive();
+      btn.setAttribute('aria-pressed', String(dark));
+      const label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.setAttribute('aria-label', label);
+      btn.title = label;
+      // Plain-property assignment (icon.hidden = …) sets the IDL property
+      // but doesn't reliably reflect to the content attribute on inline
+      // <svg> in every engine, so toggle the attribute explicitly.
+      sunIcon.toggleAttribute('hidden', dark);
+      moonIcon.toggleAttribute('hidden', !dark);
+    }
+    btn.addEventListener('click', () => {
+      const next = isDarkActive() ? 'light' : 'dark';
+      try { localStorage.setItem('rac-theme', next); } catch (e) { /* no persistence available */ }
+      document.documentElement.setAttribute('data-theme', next);
+      render();
+    });
+    // If the user hasn't overridden anything, keep following the OS live.
+    mql.addEventListener('change', () => { if (!getStored()) render(); });
+    render();
+  }
+
+  // ---------------------------------------------------------------------
   // Tabs
   // ---------------------------------------------------------------------
   function initTabs() {
@@ -963,6 +1006,7 @@
   // ---------------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', async () => {
     initViewSwitch();
+    initThemeToggle();
     initEngineBadge();
     try {
       rules = await loadRules();
