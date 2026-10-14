@@ -531,6 +531,9 @@
       if (typeof attribute.min === 'number' && value < attribute.min) return attribute.label + ' must be ≥ ' + attribute.min + '.';
       if (typeof attribute.max === 'number' && value > attribute.max) return attribute.label + ' must be ≤ ' + attribute.max + '.';
     }
+    if (attribute.type === 'boolean' && typeof value !== 'boolean') {
+      return attribute.label + ' must be true or false.';
+    }
     if (attribute.type === 'enum' && Array.isArray(attribute.values) && !attribute.values.includes(value)) {
       return attribute.label + ' must be one of: ' + attribute.values.join(', ');
     }
