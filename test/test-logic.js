@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const RaC = require('../js/logic.js');
 const { staleFiles } = require('../scripts/build-docs.js');
+const { bpmnToRules } = require('../scripts/bpmn-to-rules.js');
 
 const root = path.join(__dirname, '..');
 const rules = JSON.parse(fs.readFileSync(path.join(root, 'rules.json'), 'utf8'));
@@ -79,6 +80,18 @@ async function main() {
   // 7) The generated report files in docs/ match the current rules.json.
   const stale = staleFiles();
   assert(stale.length === 0, 'docs/ files are up to date' + (stale.length ? ' (stale: ' + stale.join(', ') + ' — run "npm run build:docs")' : ''));
+
+  // 8) The BPMN importer rebuilds the same tree from the BPMN in docs/:
+  //    same nodes, branches and variables as rules.json.
+  const bpmn = fs.readFileSync(path.join(root, 'docs/control-balance-sheet-website-v2.bpmn'), 'utf8');
+  const imported = bpmnToRules(bpmn, rules);
+  assert(imported.errors.length === 0, 'the BPMN in docs/ converts without errors');
+  const sameTree = Object.keys(rules.nodes).join() === Object.keys(imported.rules.nodes).join() &&
+    Object.entries(rules.nodes).every(([id, n]) => {
+      const m = imported.rules.nodes[id];
+      return m.type === n.type && m.true === n.true && m.false === n.false && m.fact === n.fact;
+    });
+  assert(sameTree && imported.rules.start === rules.start, 'importing the BPMN gives the same nodes, branches and variables as rules.json');
 
   console.log('\nALL CHECKS PASSED');
 }

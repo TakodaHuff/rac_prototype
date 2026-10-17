@@ -6,6 +6,7 @@
   "scripts": {
     "build:engine": "node scripts/build-vendor.js",
     "build:docs": "node scripts/build-docs.js",
+    "import:bpmn": "node scripts/bpmn-to-rules.js",
     "decide": "node scripts/runner.js decide rules.json",
     "test:suite": "node scripts/runner.js test rules.json docs/test-suite-full.csv --log docs/test-run.log",
     "test": "node test/test-logic.js"

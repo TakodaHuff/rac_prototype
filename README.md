@@ -31,6 +31,26 @@ python3 -m http.server
 
 then open `http://localhost:8000/`. On GitHub Pages it works as-is.
 
+## Importing the BPMN
+
+`scripts/bpmn-to-rules.js` turns the decision tree drawn in BPMN (bpmn.io, Camunda Modeler) into `rules.json`, keeping every node ID:
+
+```
+npm run import:bpmn -- docs/final.bpmn
+```
+
+| BPMN | rules.json |
+|---|---|
+| Exclusive gateway `Q1_1` named `Q1.1 Question text? (Ch. 25 Sec. 13 Companies Act)` | Yes/no decision node `Q1_1` with `question` and `citation` |
+| Arrows named `Yes…` / `No…` | `true` / `false` targets; a note after the dash (`No – defect: not convened`) goes into the supportive text |
+| End event | Outcome node; its name becomes the `description` |
+| Start event | `start` |
+| Task or intermediate event with one outgoing arrow | passed through |
+
+Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, and the validation result.
+
+Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`. After importing: review `git diff`, then `npm run build:docs` and `npm test`.
+
 ## Runner (command line)
 
 `scripts/runner.js` executes a rules file without the browser. Requires `npm install`.
@@ -79,8 +99,9 @@ docs/               BPMN source diagram and report deliverables
 - `index.html` — markup and the page itself; styles are in `css/styles.css`.
 - `js/logic.js` — condition evaluation, rules and input validation (data dictionary), `decide()`, path traversal, test-suite generation and running. No DOM; runs in Node.
 - `js/app.js` — UI, built on `js/logic.js`.
-- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, and that the `docs/` files are up to date.
+- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN in `docs/` gives the same tree as `rules.json`.
 - `scripts/runner.js` — the command-line runner (`npm run decide`, `npm run test:suite`).
+- `scripts/bpmn-to-rules.js` — the BPMN importer (`npm run import:bpmn`).
 - `scripts/build-docs.js` — regenerates the `docs/` report files from `rules.json` (`npm run build:docs`).
 - `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
@@ -193,4 +214,4 @@ Every input is checked against the data dictionary before the engine runs — in
 
 - One condition per node — model AND/OR as separate nodes.
 - Boundary test generation assumes a fact's range isn't narrowed further later on the same path.
-- No `.bpmn` import — BPMN-to-JSON is manual.
+- The BPMN import reads yes/no gateways only; number and choice questions need their type and condition set by hand after importing.
