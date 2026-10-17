@@ -218,12 +218,12 @@
         alert('Could not convert "' + file.name + '" — nothing was changed:\n\n' + errors.map((e) => '• ' + e).join('\n'));
         return;
       }
-      imported.meta.bpmnFile = 'docs/' + file.name;
+      imported.meta.bpmnFile = 'rules.bpmn'; // the repo keeps the BPMN under this name
       rules = imported;
       afterRulesChanged();
       alert('Imported "' + file.name + '": ' + RaCBpmn.importReport(rules, report, RaC.validateRules(rules)) +
-        '\n\nTo make it permanent: Download JSON and replace rules.json in the repo, save the BPMN as docs/' + file.name +
-        ', then run "npm run build:docs" and "npm test".');
+        '\n\nTo make it permanent: Download JSON and replace rules.json in the repo, save the BPMN as rules.bpmn' +
+        (file.name === 'rules.bpmn' ? '' : ' (it is "' + file.name + '" now)') + ', then run "npm run build:docs" and "npm test".');
     });
     $('#download-json').addEventListener('click', () => {
       download(RULES_URL, RaC.formatRules(rules), 'application/json');

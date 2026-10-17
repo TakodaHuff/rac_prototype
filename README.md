@@ -33,15 +33,15 @@ then open `http://localhost:8000/`. On GitHub Pages it works as-is.
 
 ## Importing the BPMN
 
-`js/bpmn.js` turns the decision tree drawn in BPMN (bpmn.io, Camunda Modeler) into `rules.json`, keeping every node ID. It runs in two places:
+The decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rules.bpmn`** next to `rules.json`. `js/bpmn.js` turns it into `rules.json`, keeping every node ID. It runs in two places:
 
 - **Command line** — writes `rules.json` directly:
 
   ```
-  npm run import:bpmn -- docs/final.bpmn
+  npm run import:bpmn -- rules.bpmn
   ```
 
-- **Browser** — Author view → **Upload BPMN**. The converted rules replace the ones in the browser tab and a report shows what changed. **Download JSON** then saves them as `rules.json`; replace the file in the repo and save the BPMN in `docs/` under the same name, as the report says.
+- **Browser** — Author view → **Upload BPMN**. The converted rules replace the ones in the browser tab and a report shows what changed. **Download JSON** then saves them as `rules.json`; replace the file in the repo and save the BPMN as `rules.bpmn`, as the report says.
 
 | BPMN | rules.json |
 |---|---|
@@ -57,11 +57,11 @@ Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow;
 
 ### Updating to a new BPMN
 
-1. Put the file in `docs/`, e.g. `docs/final.bpmn`.
+1. Replace `rules.bpmn` with the new file (keep the name).
 2. Import it (this overwrites `rules.json`):
 
    ```
-   npm run import:bpmn -- docs/final.bpmn
+   npm run import:bpmn -- rules.bpmn
    ```
 
    Or in the browser: Author view → **Upload BPMN** → **Download JSON**, and replace `rules.json` with the downloaded file.
@@ -116,6 +116,7 @@ The test file uses the columns of the generated suite: `test_id, description`, o
 
 ```
 index.html          the page: markup only
+rules.bpmn          the decision tree (BPMN), source of rules.json
 rules.json          the law the site runs
 css/styles.css      all styles (light and dark theme)
 js/logic.js         core logic, no DOM
@@ -125,7 +126,7 @@ vendor/             prebuilt json-rules-engine bundle
 scripts/            build tooling (not loaded by the site)
 test/               npm test
 examples/           example rule files
-docs/               BPMN source diagram and report deliverables
+docs/               report deliverables (data dictionary, test suite)
 ```
 
 - `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Author view only change the rules in the browser tab until you download them.
@@ -138,7 +139,7 @@ docs/               BPMN source diagram and report deliverables
 - `scripts/build-docs.js` — regenerates the `docs/` report files from `rules.json` (`npm run build:docs`).
 - `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
-- `docs/control-balance-sheet-website-v2.bpmn` — the BPMN diagram `rules.json` was translated from (node IDs match).
+- `rules.bpmn` — the Law students' decision tree in BPMN; `rules.json` is imported from it (node IDs match).
 - `docs/data-dictionary.csv`/`.json`, `docs/test-suite-full.csv` — generated from `rules.json` for the report by `npm run build:docs`. `npm test` fails if they are out of date.
 
 ## Condition evaluation

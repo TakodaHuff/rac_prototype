@@ -121,7 +121,7 @@
   },
   {
     "id": "q4_2_new_cbs_prepared",
-    "label": "Has the board prepared a new control balance sheet under Ch. 25 Sec. 14 before the second control meeting?",
+    "label": "Has the board prepared a new control balance sheet under Ch. 25 Sec. 14 Companies Act before the second control meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -141,7 +141,7 @@
   },
   {
     "id": "q4_4_full_equity_at_second_meeting",
-    "label": "Is equity under Ch. 25 Sec. 14, at the time of the second control meeting, at least equal to the registered share capital?",
+    "label": "Is equity under Ch. 25 Sec. 14 Companies Act at the time of the second control meeting at least equal to the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
