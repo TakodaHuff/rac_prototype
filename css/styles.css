@@ -1,11 +1,18 @@
 /*
+ * styles.css — all styles for index.html.
+ *
  * Palette derived from studyinsweden.se: Swedish-flag blue (#005293) and
- * gold (#FECB00) as the two bold accents, near-black text, sharp corners,
- * and one bold geometric sans (Space Grotesk) for display type — a
- * minimalist, Bauhaus-flavored reskin over the same markup and behavior
- * as before. Decoration is kept to a minimum: color and type carry the
- * look, nothing is purely ornamental.
+ * gold (#FECB00) as the two accents, near-black text, sharp corners, and
+ * Space Grotesk for display type. Color and type carry the look; nothing
+ * is purely ornamental.
+ *
+ * Every color is a custom property (--name) defined in the theme blocks
+ * below, so the rest of the file works unchanged in light and dark mode.
  */
+
+/* ===== Theme tokens ===== */
+
+/* Light theme (default). */
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
@@ -39,6 +46,9 @@
   --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 3px;
 }
+/* Dark theme, applied two ways: by the OS setting (unless the user picked
+   light with the toggle), and by the toggle itself (data-theme="dark").
+   Keep the two blocks identical. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0b1e33;
@@ -100,6 +110,8 @@
   --code-text: #cfe6f7;
 }
 
+/* ===== Base ===== */
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -109,6 +121,8 @@ body {
   line-height: 1.5;
 }
 ::selection { background: var(--gold); color: var(--gold-ink); }
+
+/* ===== Header: title, view switch, theme toggle ===== */
 
 header {
   background: var(--accent);
@@ -148,12 +162,12 @@ header {
   color: var(--accent-ink);
   cursor: pointer;
 }
-.theme-toggle:hover { background: rgba(255, 255, 255, 0.15); }
 .theme-toggle:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
 .theme-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 /* The [hidden] UA rule doesn't reliably hide inline <svg> in every
    browser, so force it explicitly for the two icon states. */
 .theme-toggle svg[hidden] { display: none; }
+/* The Check view hides everything meant for authors. */
 body.view-check .toolbar,
 body.view-check .tabs,
 body.view-check .author-only { display: none; }
@@ -175,6 +189,8 @@ header h1 {
   color: var(--accent-ink);
   text-wrap: balance;
 }
+
+/* ===== Toolbar and tabs (Author view) ===== */
 
 .toolbar {
   max-width: 1000px;
@@ -224,6 +240,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
+/* ===== Play tab: question card ===== */
+
 .card {
   background: var(--surface);
   border: 2px solid var(--border);
@@ -262,6 +280,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .glossary-list dd { margin: 2px 0 8px; color: var(--muted); }
 .glossary-list dd:last-child { margin-bottom: 0; }
 
+/* ===== Buttons ===== */
+
 .btn {
   border: 2px solid var(--border);
   background: var(--surface);
@@ -282,6 +302,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .btn-link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 6px 0; }
 .btn-danger-outline { color: var(--danger); border-color: var(--danger-soft-border); background: var(--danger-soft); }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ===== Play tab: result ===== */
 
 .outcome-badge {
   display: inline-block;
@@ -309,6 +331,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .supportive-list { padding-left: 18px; font-size: 14px; color: var(--muted); }
 .card h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; font-family: var(--font-mono); }
 
+/* ===== Form inputs ===== */
+
 .text-input {
   padding: 9px 10px;
   border: 1px solid var(--border);
@@ -321,6 +345,9 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 }
 .text-input.wide { width: 100%; }
 .text-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ===== Notices (error / warning / ok / info boxes) ===== */
 
 .notice { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; font-size: 14px; }
 .notice ul { margin: 6px 0 0; padding-left: 18px; }
@@ -328,6 +355,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .notice-warn { background: var(--warn-soft); border: 1px solid var(--warn-soft-border); color: var(--warn); }
 .notice-ok { background: var(--ok-soft); border: 1px solid var(--ok-soft-border); color: var(--ok); }
 .notice-info { background: var(--info-soft); border: 1px solid var(--info-soft-border); color: var(--info-text); }
+
+/* ===== Build tab: numbered sections, editor table, node cards ===== */
 
 section.builder-block { margin-bottom: 30px; }
 section.builder-block h3 {
@@ -389,6 +418,8 @@ section.builder-block h3 {
 @keyframes node-flash { from { box-shadow: 0 0 0 4px var(--gold); } to { box-shadow: 0 0 0 4px transparent; } }
 .node-card.flash { animation: node-flash 1.6s ease-out; }
 
+/* ===== Build tab: flowchart with pan / zoom ===== */
+
 #flowchart {
   position: relative;
   border: 2px solid var(--border);
@@ -436,6 +467,8 @@ section.builder-block h3 {
 #flowchart .fc-node-link:focus-visible rect { stroke: var(--gold) !important; stroke-width: 3px !important; }
 #flowchart .fc-node-link:focus { outline: none; }
 
+/* ===== Build tab: raw JSON and meta / start editors ===== */
+
 #json-preview {
   background: var(--code-bg);
   color: var(--code-text);
@@ -449,24 +482,23 @@ section.builder-block h3 {
   word-break: break-word;
 }
 
-.tests-table { font-size: 12px; font-family: var(--font-mono); }
-.tests-table th { font-family: var(--font-mono); }
-.tests-table tr.edge-boundary td { background: var(--warn-soft); }
-.tests-table tr.edge-negative td { background: var(--danger-soft); }
-.tests-table td, .tests-table th { font-variant-numeric: tabular-nums; }
-.tests-table td:first-child, .tests-table th:first-child { font-family: var(--font-mono); }
-
 #meta-editor label, #start-editor { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
 #start-editor { margin-bottom: 16px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
 
-input[type="file"] { font-size: 13px; color: var(--muted); }
-input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+/* ===== Test suite tab ===== */
+
+.tests-table { font-size: 12px; font-family: var(--font-mono); }
+.tests-table tr.edge-boundary td { background: var(--warn-soft); }
+.tests-table tr.edge-negative td { background: var(--danger-soft); }
+.tests-table td, .tests-table th { font-variant-numeric: tabular-nums; }
+
+/* ===== Small screens ===== */
 
 @media (max-width: 480px) {
   .toolbar, .tabs, main, .header-inner { padding-inline: 12px; }
 }
 
-/* Print / save as PDF: just the result, in black on white. */
+/* ===== Print / save as PDF: just the result, in black on white ===== */
 @media print {
   :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
     --bg: #ffffff; --surface: #ffffff; --surface-2: #f2f2f2; --border: #cccccc;

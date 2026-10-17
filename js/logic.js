@@ -11,6 +11,7 @@
  * browser (index.html) and directly in Node for testing (npm test).
  */
 
+// Export for both environments: module.exports in Node, window.RaC in the browser.
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();
@@ -20,6 +21,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  // Operators a decision node may use (a subset of json-rules-engine's).
   const OPERATORS = [
     'equal', 'notEqual',
     'lessThan', 'lessThanInclusive',
@@ -234,6 +236,10 @@
   // ---------------------------------------------------------------------
   // Path traversal with per-fact constraint narrowing
   // ---------------------------------------------------------------------
+  // While walking a path, each branch taken narrows what the fact can be:
+  // numbers get a {min, max, exclude} range, other types get {eq, neq,
+  // inSet, notInSet}. The test generator later picks values inside these
+  // constraints so that each test row really follows its path.
 
   function cloneConstraints(c) {
     const out = {};
@@ -248,6 +254,9 @@
     return out;
   }
 
+  // Returns a copy of `constraints` with this node's condition applied for
+  // the given branch (true = condition holds). Numeric steps are ±1, so
+  // this assumes whole numbers.
   function narrow(constraints, attribute, node, branch) {
     const out = cloneConstraints(constraints);
     const id = node.fact;
@@ -334,8 +343,10 @@
   // ---------------------------------------------------------------------
   // Representative value selection
   // ---------------------------------------------------------------------
+  // Turns a path's constraints into concrete input values: the middle of a
+  // numeric range, the required/allowed value for booleans and enums.
 
-  function pickValue(attribute, entry, mode) {
+  function pickValue(attribute, entry) {
     entry = entry || {};
     if (!attribute) return null;
 
@@ -346,10 +357,7 @@
       if (!isFinite(hi)) hi = lo + 100;
       if (lo > hi) { const t = lo; lo = hi; hi = t; } // shouldn't happen with consistent rules, but stay safe
 
-      let value;
-      if (mode === 'boundaryLow') value = lo;
-      else if (mode === 'boundaryHigh') value = hi;
-      else value = Math.round((lo + hi) / 2);
+      let value = Math.round((lo + hi) / 2);
 
       // nudge off excluded values (from strict equal/notEqual narrowing)
       const excluded = new Set(entry.exclude || []);
@@ -363,22 +371,22 @@
     if (attribute.type === 'boolean') {
       if (typeof entry.eq === 'boolean') return entry.eq;
       if (entry.neq && entry.neq.length) return !entry.neq[0];
-      return mode === 'boundaryHigh' ? true : false;
+      return false;
     }
 
     // enum / string
     if (entry.eq !== undefined) return entry.eq;
     if (entry.inSet) return Array.isArray(entry.inSet) ? entry.inSet[0] : entry.inSet;
     const domain = Array.isArray(attribute.values) ? attribute.values : [];
-    const excluded = new Set((entry.neq || []).concat(entry.notInSet ? [].concat(...([entry.notInSet])) : []));
+    const excluded = new Set((entry.neq || []).concat(entry.notInSet || []));
     const pick = domain.find((v) => !excluded.has(v));
     return pick !== undefined ? pick : (domain[0] !== undefined ? domain[0] : null);
   }
 
-  function buildFacts(attributes, constraints, mode) {
+  function buildFacts(attributes, constraints) {
     const facts = {};
     for (const attribute of attributes) {
-      facts[attribute.id] = pickValue(attribute, constraints[attribute.id], mode);
+      facts[attribute.id] = pickValue(attribute, constraints[attribute.id]);
     }
     return facts;
   }
@@ -414,6 +422,9 @@
     return steps.map((s) => s.nodeId).concat([outcomeId]).join('>');
   }
 
+  // Builds the draft test suite: one "normal" row per path, one "boundary"
+  // row per numeric threshold and branch, and "negative" rows with one
+  // invalid or missing input each.
   function generateTestSuite(rules) {
     const { paths, attributesById } = traverseAllPaths(rules);
     const attributes = rules.attributes || [];
@@ -422,7 +433,7 @@
 
     // 1) Normal rows — one per full root-to-outcome path
     for (const p of paths) {
-      const facts = buildFacts(attributes, p.constraints, 'normal');
+      const facts = buildFacts(attributes, p.constraints);
       rows.push({
         test_id: 'TC' + n++,
         description: 'Path ' + pathString(p.steps, p.outcomeId),
@@ -463,7 +474,7 @@
 
         const constraintsCopy = cloneConstraints(p.constraints);
         constraintsCopy[node.fact] = Object.assign({}, constraintsCopy[node.fact], { min: boundary, max: boundary });
-        const facts = buildFacts(attributes, constraintsCopy, 'normal');
+        const facts = buildFacts(attributes, constraintsCopy);
 
         rows.push({
           test_id: 'TC' + n++,
@@ -477,7 +488,7 @@
     }
 
     // 3) Negative / invalid rows — one baseline fact set, one field perturbed at a time
-    const baseline = paths.length ? buildFacts(attributes, paths[0].constraints, 'normal') : {};
+    const baseline = paths.length ? buildFacts(attributes, paths[0].constraints) : {};
     for (const attribute of attributes) {
       const kinds = [];
       if (attribute.type === 'number') kinds.push('outOfRange', 'wrongType');
@@ -533,6 +544,10 @@
     return lines.join('\r\n');
   }
 
+  // ---------------------------------------------------------------------
+  // Questionnaire helper
+  // ---------------------------------------------------------------------
+
   /**
    * Given a decision node, synthesize a fact value that is guaranteed to
    * satisfy (branch=true) or fail (branch=false) that node's own condition
@@ -560,6 +575,7 @@
     }
   }
 
+  // Public API, used by app.js and test/test-logic.js.
   return {
     OPERATORS,
     evaluateCondition,
@@ -570,8 +586,6 @@
     traverseAllPaths,
     generateTestSuite,
     testSuiteToCSV,
-    buildFacts,
-    pickValue,
     valueForBranch,
   };
 });

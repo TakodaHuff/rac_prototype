@@ -1,14 +1,27 @@
-/* app.js — UI wiring for the Rule-as-Code prototype. Depends on logic.js (window.RaC). */
+/*
+ * app.js — the UI of the Rule-as-Code prototype. Depends on logic.js (window.RaC).
+ *
+ * Sections, in order:
+ *  - loading rules.json, global state, DOM helpers
+ *  - views (Check / Author), theme toggle, tabs, toolbar file controls
+ *  - Play tab: the questionnaire, intro and printable result
+ *  - Build tab: editors for meta, variables and nodes, validation, JSON preview
+ *  - Build tab flowchart (Mermaid) with pan and zoom
+ *  - Test suite tab
+ *  - startup
+ */
 (function () {
   'use strict';
 
   // ---------------------------------------------------------------------
+  // Loading rules.json
+  // ---------------------------------------------------------------------
   // The rules live in one place: rules.json at the project root, fetched on
   // startup. fetch() of a sibling file is blocked under file://, so the
   // folder must be served (GitHub Pages, `python3 -m http.server`).
-  // ---------------------------------------------------------------------
   const RULES_URL = 'rules.json';
 
+  // Starting point for the toolbar's "New" button.
   const EMPTY_RULES = {
     meta: { title: 'Untitled rules', description: '' },
     attributes: [],
@@ -42,9 +55,12 @@
   // ---------------------------------------------------------------------
   // Global state
   // ---------------------------------------------------------------------
-  let rules = null; // set once rules.json has loaded
-  let playState = null; // { currentId, facts, history: [{nodeId, factId, value, answer, question, supportiveText, citation}] }
+  let rules = null; // set once rules.json has loaded; Build tab edits change it in place
+  let playState = null; // questionnaire progress, see newPlayState()
 
+  // ---------------------------------------------------------------------
+  // DOM helpers
+  // ---------------------------------------------------------------------
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
   function el(tag, attrs, children) {
@@ -164,9 +180,9 @@
   // ---------------------------------------------------------------------
   // File load / save (shared across tabs)
   // ---------------------------------------------------------------------
-  // There's no upload: the site only ever runs rules.json. Edits made in the
-  // Build tab are downloaded under that same name, ready to replace the file
-  // in the repo.
+  // New / Upload JSON replace the rules in this browser tab only; the site
+  // itself always starts from rules.json. Download JSON saves under that
+  // same name, ready to replace the file in the repo.
   function initFileControls() {
     $('#new-rules').addEventListener('click', () => {
       if (!confirm('Start a new, empty rules file? Unsaved changes will be lost.')) return;
@@ -295,9 +311,9 @@
       }
     }
 
-    if (!attribute) {
-      inputWrap.appendChild(el('div', { class: 'notice notice-error', text: 'Fact "' + node.fact + '" is not declared in attributes — cannot render an input.' }));
-    } else if (node.inputMode === 'yesno') {
+    // One input per variable type. validateRules() above guarantees that
+    // node.fact is a declared attribute.
+    if (node.inputMode === 'yesno') {
       // Ask the node's own condition directly as Yes/No instead of collecting
       // a raw value (e.g. "20 or older?" instead of a numeric age field).
       inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: 'Yes', onclick: () => commit(RaC.valueForBranch(node, true), 'Yes') }));
@@ -346,6 +362,12 @@
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Play helpers: state, navigation, intro, result, legal sources
+  // ---------------------------------------------------------------------
+
+  // history: one entry per answered question, in order.
+  // previousAnswers: answers dropped by Back/Change, shown as highlights.
   function newPlayState(started) {
     return { started, currentId: rules.start, facts: {}, history: [], previousAnswers: {} };
   }
@@ -531,8 +553,7 @@
   // ---------------------------------------------------------------------
   function renderBuild() {
     renderAttributesEditor();
-    renderNodesEditor();
-    renderStartSelector();
+    renderNodesEditor(); // also renders the start-node selector
     renderMetaEditor();
     renderValidation();
     renderJsonPreview();
@@ -578,11 +599,7 @@
     rules.attributes.forEach((attr, i) => {
       const row = el('tr');
       row.appendChild(td(input(attr.id, (v) => {
-        // Renaming an attribute's id here used to leave every node.fact
-        // that already pointed at the old id dangling — e.g. wire Q1 to
-        // "age", then rename the attribute to "ageCheck" for clarity, and
-        // Q1 silently keeps citing "age", an id that no longer exists.
-        // Carry the rename through to any node still referencing it.
+        // Renaming a variable also renames it in every node that uses it.
         const oldId = attr.id;
         attr.id = v;
         if (oldId && oldId !== v) {
@@ -651,12 +668,7 @@
     }));
     root.appendChild(addRow);
 
-    // The Start-node selector was only refreshed on a full tab render, never
-    // when a node was added or deleted here — so on a brand-new file, adding
-    // your first node left the dropdown showing it (a bare <select> defaults
-    // to highlighting an available option) while rules.start silently stayed
-    // "" underneath, all the way through to export. Refresh it every time
-    // the node list itself changes, not just on tab switch.
+    // The node list changed, so the start-node options may have too.
     renderStartSelector();
   }
 
@@ -679,14 +691,8 @@
     // just updating in place.
     const refresh = () => { renderNodesEditor(); renderJsonPreview(); };
 
-    // Same visual/data desync as the Start-node selector: a <select> shows
-    // its first option as chosen whenever the bound value matches none of
-    // them, with no 'change' event to catch it. That happens here whenever
-    // node.fact points at an attribute id that no longer exists — most
-    // commonly because the attribute was renamed after this node was wired
-    // to it. The Variable dropdown would then quietly display the first
-    // declared attribute as if it were selected while node.fact (and the
-    // exported JSON) still held the old, dangling id. Snap them together.
+    // A <select> whose value matches no option shows the first one anyway.
+    // Make the data match what is shown: an unknown fact becomes the first variable.
     if (attrOptions.length && !attrOptions.includes(node.fact)) {
       node.fact = attrOptions[0];
       renderJsonPreview();
@@ -720,14 +726,8 @@
     return card;
   }
 
-  // A node's "go to" target is only meaningful once it points at a real
-  // node. If it's empty (a freshly added node) or stale (its old target was
-  // deleted), the <select> below still visually highlights whatever option
-  // happens to be first — native <select> behavior when no option matches
-  // the stored value — which looks fine but leaves the underlying rules.json
-  // pointing nowhere, and validation correctly reports "outcome doesn't
-  // exist". Snap it to a real target as soon as we render, so what's shown
-  // always matches what's saved.
+  // The "If TRUE / If FALSE, go to" dropdowns. An empty or deleted target is
+  // reset to the first node, so the data matches what the <select> shows.
   function branchFields(id, node, nodeIds) {
     const targets = nodeIds.filter((n) => n !== id);
     if (!targets.includes(node.true)) {
@@ -803,6 +803,8 @@
     return card;
   }
 
+  // Small form-control helpers for the Build tab editors.
+  // coerce: text box input -> boolean / number / string.
   function coerce(v) {
     if (v === 'true') return true;
     if (v === 'false') return false;
@@ -837,12 +839,7 @@
     const root = $('#start-editor');
     root.innerHTML = '';
     const nodeIds = Object.keys(rules.nodes || {});
-    // A native <select> visually highlights the first option whenever the
-    // bound value doesn't match any of them — it never fires a 'change'
-    // event on its own, so rules.start (e.g. still '' on a brand-new file)
-    // silently stays wrong even though the dropdown looks like it already
-    // says "Q1". Snap the model to what's on screen, same as branchFields
-    // does for true/false targets, so the two can't drift apart.
+    // Same as branchFields: a missing start node becomes the first node.
     if (!nodeIds.includes(rules.start)) {
       const next = nodeIds[0] || '';
       if (rules.start !== next) { rules.start = next; renderJsonPreview(); }
@@ -980,6 +977,7 @@
     return short.replace(/"/g, '#quot;').replace(/</g, '#lt;').replace(/>/g, '#gt;');
   }
 
+  // Mermaid source for the tree: one box per node, one labelled arrow per branch.
   function flowchartSource(keyOf) {
     const lines = ['flowchart TD'];
     Object.entries(rules.nodes || {}).forEach(([id, node]) => {
@@ -1118,7 +1116,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Init
+  // Startup: wire up the page, load rules.json, then render all three tabs.
   // ---------------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', async () => {
     initViewSwitch();
@@ -1141,6 +1139,7 @@
     renderTests();
   });
 
+  // Toolbar badge showing whether json-rules-engine loaded.
   function initEngineBadge() {
     const badge = $('#engine-status');
     if (!badge) return;

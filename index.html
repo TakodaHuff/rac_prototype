@@ -20,10 +20,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1">
+<link rel="stylesheet" href="css/styles.css?v=2">
 </head>
 <body class="view-check">
+<!-- The body class picks the view: view-check (questionnaire only) or view-author (set by js/app.js from #author). -->
 
+<!-- Header: title, theme toggle, Check / Author switch -->
 <header>
   <div class="header-inner">
     <div>
@@ -55,6 +57,7 @@
   </div>
 </header>
 
+<!-- Author view only: file actions and engine status -->
 <div class="toolbar">
   <button class="btn" id="new-rules">New</button>
   <label class="btn" style="margin:0;">
@@ -67,6 +70,7 @@
   <span id="engine-status" class="engine-badge" title="Condition evaluation engine in use"></span>
 </div>
 
+<!-- Author view only: tab bar. The Check view always shows Play. -->
 <div class="tabs">
   <button class="tab-btn active" data-tab="play">Play</button>
   <button class="tab-btn" data-tab="build">Build</button>
@@ -75,6 +79,7 @@
 
 <main>
 
+  <!-- Each panel is an empty container; js/app.js renders the content. -->
   <div class="tab-panel active" id="tab-play">
     <div id="play-root"></div>
   </div>
@@ -119,8 +124,10 @@
 
 </main>
 
+<!-- Order matters: the engine bundle sets window.JsonRulesEngine, logic.js sets window.RaC, app.js uses both.
+     Bump the ?v= number after editing a file so browsers don't use a cached copy. -->
 <script src="vendor/json-rules-engine.bundle.js"></script>
-<script src="js/logic.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/logic.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>
