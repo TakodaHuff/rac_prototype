@@ -64,6 +64,8 @@ Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow;
    npm run import:bpmn -- docs/final.bpmn
    ```
 
+   Or in the browser: Author view → **Upload BPMN** → **Download JSON**, and replace `rules.json` with the downloaded file.
+
 3. Read the printed report: new, removed and changed nodes, questions that still need supportive text, and whether the data dictionary checks pass.
 4. Review the changes with `git diff rules.json`. Question texts are taken from the BPMN exactly as written; supportive texts, short outcome labels, intro texts and variables are kept.
 5. Regenerate the report files and run the tests:
@@ -104,7 +106,7 @@ npm run test:suite
 Any other rules or test file works too:
 
 ```
-node scripts/runner.js decide examples/calculation-example.json '{"equity_ratio": 0.3, "second_meeting": "Held in time"}'
+node scripts/runner.js decide examples/number-and-choice-example.json '{"equity_ratio": 0.3, "second_meeting": "Held in time"}'
 node scripts/runner.js test rules.json path/to/our-test-cases.csv --log docs/our-test-run.log
 ```
 
@@ -158,7 +160,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 ## Tabs
 
 - **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome, the decision path (node IDs), a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
-- **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
+- **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** and validation lists them until you choose another. Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
 - **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
 
 ## rules.json schema

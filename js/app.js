@@ -1,9 +1,11 @@
 /*
- * app.js — the UI of the Rule-as-Code prototype. Depends on logic.js (window.RaC).
+ * app.js — the UI of the Rule-as-Code prototype. Depends on logic.js
+ * (window.RaC) and, for Upload BPMN, bpmn.js (window.RaCBpmn).
  *
  * Sections, in order:
  *  - loading rules.json, global state, DOM helpers
  *  - views (Check / Author), theme toggle, tabs, toolbar file controls
+ *    (New, Upload JSON, Upload BPMN, Download JSON / CSV)
  *  - Play tab: the questionnaire, intro and printable result
  *  - Build tab: editors for meta, variables and nodes, validation, JSON preview
  *  - Build tab flowchart (Mermaid) with pan and zoom
@@ -244,6 +246,7 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => handle(file, reader.result);
+      reader.onerror = () => alert('Could not read "' + file.name + '": ' + (reader.error ? reader.error.message : 'unknown error'));
       reader.readAsText(file);
       e.target.value = ''; // so choosing the same file again still triggers
     });
@@ -734,13 +737,6 @@
     // just updating in place.
     const refresh = () => { renderNodesEditor(); renderJsonPreview(); };
 
-    // A <select> whose value matches no option shows the first one anyway.
-    // Make the data match what is shown: an unknown fact becomes the first variable.
-    if (attrOptions.length && !attrOptions.includes(node.fact)) {
-      node.fact = attrOptions[0];
-      renderJsonPreview();
-    }
-
     // Fixed 4-column grid, filled in this fixed order, so the layout is the
     // same for every node card instead of reflowing around content width:
     //   row 1: Question (full width)
@@ -750,7 +746,7 @@
     //   row 5: Legal citation (full width)
     const grid = el('div', { class: 'node-grid' });
     grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide')));
-    grid.appendChild(field('Variable', select(attrOptions, node.fact, (v) => { node.fact = v; refresh(); })));
+    grid.appendChild(field('Variable', select(attrOptions, node.fact, (v) => { node.fact = v; refresh(); }, missingText(node.fact))));
     grid.appendChild(field('Operator', select(RaC.OPERATORS, node.operator, (v) => { node.operator = v; refresh(); })));
     grid.appendChild(field('Value', valueControl(node)));
     const attr = (rules.attributes || []).find((a) => a.id === node.fact);
@@ -769,22 +765,14 @@
     return card;
   }
 
-  // The "If TRUE / If FALSE, go to" dropdowns. An empty or deleted target is
-  // reset to the first node, so the data matches what the <select> shows.
+  // The "If TRUE / If FALSE, go to" dropdowns. An empty or deleted target
+  // stays as it is and shows as "choose" / "missing", so validation reports it.
   function branchFields(id, node, nodeIds) {
     const targets = nodeIds.filter((n) => n !== id);
-    if (!targets.includes(node.true)) {
-      const next = targets[0] || '';
-      if (node.true !== next) { node.true = next; renderJsonPreview(); }
-    }
-    if (!targets.includes(node.false)) {
-      const next = targets[0] || '';
-      if (node.false !== next) { node.false = next; renderJsonPreview(); }
-    }
 
     function targetPreview(targetId) {
       const t = rules.nodes[targetId];
-      if (!t) return 'not set — add a node first';
+      if (!t) return targetId ? 'node "' + targetId + '" no longer exists — choose another' : 'not set — choose a node';
       const label = t.type === 'outcome' ? t.label : t.question;
       return targetId + (label ? ' — ' + label : '');
     }
@@ -792,7 +780,7 @@
     function branchField(labelText, key) {
       const wrap = el('label', { class: 'field branch-target' });
       wrap.appendChild(el('span', { text: labelText }));
-      const s = select(targets, node[key], (v) => { node[key] = v; renderJsonPreview(); });
+      const s = select(targets, node[key], (v) => { node[key] = v; renderJsonPreview(); }, missingText(node[key]));
       wrap.appendChild(s);
       const hint = el('div', { class: 'branch-hint', text: '↳ ' + targetPreview(node[key]) });
       s.addEventListener('change', () => { hint.textContent = '↳ ' + targetPreview(node[key]); });
@@ -811,20 +799,18 @@
     const attr = (rules.attributes || []).find((a) => a.id === node.fact);
     const isListOp = node.operator === 'in' || node.operator === 'notIn';
 
+    // A value that doesn't fit the variable is left as it is and shown as
+    // invalid, so the data dictionary check reports it.
     if (attr && attr.type === 'boolean' && !isListOp) {
-      if (node.value !== true && node.value !== false) {
-        node.value = true;
-        renderJsonPreview();
-      }
-      return select(['true', 'false'], String(node.value), (v) => { node.value = v === 'true'; renderJsonPreview(); });
+      const ok = node.value === true || node.value === false;
+      return select(['true', 'false'], ok ? String(node.value) : null, (v) => { node.value = v === 'true'; renderJsonPreview(); },
+        ok ? null : 'invalid: ' + JSON.stringify(node.value));
     }
 
     if (attr && attr.type === 'enum' && Array.isArray(attr.values) && attr.values.length && !isListOp) {
-      if (!attr.values.includes(node.value)) {
-        node.value = attr.values[0];
-        renderJsonPreview();
-      }
-      return select(attr.values.map(String), String(node.value), (v) => { node.value = v; renderJsonPreview(); });
+      const ok = attr.values.includes(node.value);
+      return select(attr.values.map(String), ok ? String(node.value) : null, (v) => { node.value = v; renderJsonPreview(); },
+        ok ? null : 'invalid: ' + JSON.stringify(node.value));
     }
 
     return input(Array.isArray(node.value) ? node.value.join(',') : (node.value ?? ''), (v) => {
@@ -866,8 +852,17 @@
     i.addEventListener('input', () => onChange(i.value));
     return i;
   }
-  function select(options, value, onChange) {
+  // A dropdown bound to `value`. If the value isn't one of the options, a
+  // disabled first entry shows `missingText` (e.g. "missing: Q9"), so the
+  // dropdown never pretends a different option is chosen.
+  function select(options, value, onChange, missingText) {
     const s = el('select', { class: 'text-input' });
+    if (!options.includes(value) && missingText) {
+      const opt = el('option', { value: '', text: missingText });
+      opt.disabled = true;
+      opt.selected = true;
+      s.appendChild(opt);
+    }
     options.forEach((o) => {
       const opt = el('option', { value: o, text: o });
       if (o === value) opt.selected = true;
@@ -877,18 +872,17 @@
     return s;
   }
   function td(child) { return el('td', {}, [child]); }
+  function missingText(value) { return value ? '⚠ missing: ' + value : '— choose —'; }
 
   function renderStartSelector() {
     const root = $('#start-editor');
     root.innerHTML = '';
     const nodeIds = Object.keys(rules.nodes || {});
-    // Same as branchFields: a missing start node becomes the first node.
-    if (!nodeIds.includes(rules.start)) {
-      const next = nodeIds[0] || '';
-      if (rules.start !== next) { rules.start = next; renderJsonPreview(); }
-    }
+    // A new file has no start yet, so its first node becomes the start. A
+    // start that points to a deleted node is kept and shown as missing.
+    if (!rules.start && nodeIds.length) { rules.start = nodeIds[0]; renderJsonPreview(); }
     root.appendChild(el('label', { text: 'Start node: ' }));
-    root.appendChild(select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }));
+    root.appendChild(select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }, missingText(rules.start)));
   }
 
   function renderValidation() {

@@ -81,7 +81,15 @@ async function main() {
   const stale = staleFiles();
   assert(stale.length === 0, 'docs/ files are up to date' + (stale.length ? ' (stale: ' + stale.join(', ') + ' — run "npm run build:docs")' : ''));
 
-  // 8) The BPMN importer rebuilds the same tree from the BPMN that
+  // 8) formatRules (Download JSON, the importer) changes only the layout:
+  //    reading its output back gives exactly the same rules.
+  for (const file of ['rules.json', 'examples/number-and-choice-example.json']) {
+    const original = JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
+    const roundTrip = JSON.parse(RaC.formatRules(original));
+    assert(JSON.stringify(roundTrip) === JSON.stringify(original), 'formatRules keeps every value of ' + file);
+  }
+
+  // 9) The BPMN importer rebuilds the same tree from the BPMN that
   //    rules.json was made from (meta.bpmnFile, set by the importer):
   //    same nodes, branches and variables.
   const bpmnFile = rules.meta && rules.meta.bpmnFile;
@@ -89,6 +97,10 @@ async function main() {
     console.log('skip - rules.json has no meta.bpmnFile, so there is no BPMN to compare with');
     console.log('\nALL CHECKS PASSED');
     return;
+  }
+  if (!fs.existsSync(path.join(root, bpmnFile))) {
+    throw new Error('FAILED: rules.json was imported from ' + bpmnFile + ', but that file is missing. ' +
+      'Save the BPMN there (or re-import it with "npm run import:bpmn -- <file>").');
   }
   const bpmn = fs.readFileSync(path.join(root, bpmnFile), 'utf8');
   const imported = bpmnToRules(bpmn, rules);

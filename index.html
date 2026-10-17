@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=3">
+<link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body class="view-check">
 <!-- The body class picks the view: view-check (questionnaire only) or view-author (set by js/app.js from #author). -->
@@ -61,13 +61,13 @@
 <!-- Author view only: file actions and engine status -->
 <div class="toolbar">
   <button class="btn" id="new-rules">New</button>
-  <label class="btn" style="margin:0;">
+  <label class="btn file-btn">
     Upload JSON
-    <input type="file" id="upload-json" accept="application/json,.json" style="display:none;">
+    <input type="file" id="upload-json" accept="application/json,.json">
   </label>
-  <label class="btn" style="margin:0;" title="Convert a BPMN decision tree (yes/no gateways) into rules">
+  <label class="btn file-btn" title="Convert a BPMN decision tree (yes/no gateways) into rules">
     Upload BPMN
-    <input type="file" id="upload-bpmn" accept=".bpmn,.xml" style="display:none;">
+    <input type="file" id="upload-bpmn" accept=".bpmn,.xml">
   </label>
   <button class="btn btn-primary" id="download-json">Download JSON</button>
   <button class="btn btn-primary" id="download-csv" title="Download the test suite as a CSV file">Download CSV</button>
@@ -135,6 +135,6 @@
 <script src="vendor/json-rules-engine.bundle.js"></script>
 <script src="js/logic.js?v=10"></script>
 <script src="js/bpmn.js?v=1"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

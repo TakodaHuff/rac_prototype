@@ -202,6 +202,9 @@ header h1 {
   border-bottom: 2px solid var(--border);
 }
 .toolbar .spacer { flex: 1; }
+/* Upload buttons: a <label> styled as a button around a hidden file input. */
+.file-btn { margin: 0; }
+.file-btn input[type="file"] { display: none; }
 .engine-badge {
   font-size: 12px;
   color: var(--muted);
