@@ -49,7 +49,33 @@ npm run import:bpmn -- docs/final.bpmn
 
 Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, and the validation result.
 
-Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`. After importing: review `git diff`, then `npm run build:docs` and `npm test`.
+Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`.
+
+### Updating to a new BPMN
+
+1. Put the file in `docs/`, e.g. `docs/final.bpmn`.
+2. Import it (this overwrites `rules.json`):
+
+   ```
+   npm run import:bpmn -- docs/final.bpmn
+   ```
+
+3. Read the printed report: new, removed and changed nodes, questions that still need supportive text, and whether the data dictionary checks pass.
+4. Review the changes with `git diff rules.json`. Question texts are taken from the BPMN exactly as written; supportive texts, short outcome labels, intro texts and variables are kept.
+5. Regenerate the report files and run the tests:
+
+   ```
+   npm run build:docs
+   npm test
+   ```
+
+6. Commit `rules.json`, the new BPMN and the `docs/` files together.
+
+The import never changes the BPMN, and git keeps the previous `rules.json`, so a bad import can be undone with `git checkout rules.json`.
+
+**For whoever draws the BPMN:**
+- Every gateway needs exactly one arrow whose name starts with `Yes` and one starting with `No`. A note after a dash (`No – defect: …`) is fine and goes into the supportive text.
+- Questions that ask for an amount, a date or a choice between several options are imported as yes/no, because the diagram doesn't say otherwise. List them for the IS team, who then set their `type` and condition in `rules.json`.
 
 ## Runner (command line)
 
