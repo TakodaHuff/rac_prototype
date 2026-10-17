@@ -31,20 +31,35 @@ then open `http://localhost:8000/`. On GitHub Pages it works as-is.
 
 ## Files
 
+```
+index.html          the page: markup only
+rules.json          the law the site runs
+css/styles.css      all styles (light and dark theme)
+js/logic.js         core logic, no DOM
+js/app.js           UI
+vendor/             prebuilt json-rules-engine bundle
+scripts/            build tooling (not loaded by the site)
+test/               npm test
+examples/           example rule files
+docs/               BPMN source diagram and report deliverables
+```
+
 - `rules.json` — **the** rules file: the law the site runs. The only source of truth; there is no upload.
-- `index.html` — markup, CSS, and the page itself.
-- `logic.js` — condition evaluation, validation, path traversal, test-suite generation. No DOM; runs in Node.
-- `app.js` — UI, built on `logic.js`.
-- `test-logic.js` — `node test-logic.js` / `npm test`. Requires `npm install`. Checks that `rules.json` validates, every path ends at an outcome, and every generated test row matches the engine.
-- `engine-bundle-src.js`, `build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
+- `index.html` — markup and the page itself; styles are in `css/styles.css`.
+- `js/logic.js` — condition evaluation, validation, path traversal, test-suite generation. No DOM; runs in Node.
+- `js/app.js` — UI, built on `js/logic.js`.
+- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` validates, every path ends at an outcome, every normal/boundary test row matches the engine, and every negative row is rejected by input validation.
+- `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
+- `docs/control-balance-sheet-website-v2.bpmn` — the BPMN diagram `rules.json` was translated from (node IDs match).
+- `docs/data-dictionary.csv`/`.json`, `docs/test-suite-full.csv` — generated from `rules.json` for the report. Regenerate them after changing `rules.json`.
 
 ## Condition evaluation
 
 Every condition runs through the real `json-rules-engine` — no reimplementation, no CDN.
 
 - Node: `require('json-rules-engine')`.
-- Browser: `vendor/json-rules-engine.bundle.js` (loads before `logic.js`, sets `window.JsonRulesEngine`).
+- Browser: `vendor/json-rules-engine.bundle.js` (loads before `js/logic.js`, sets `window.JsonRulesEngine`).
 
 If neither is available, `evaluateCondition` throws — badge reads "not loaded", Play tab shows the error. Run Setup.
 

@@ -10,7 +10,7 @@ const compiler = webpack({
   target: 'web',
   output: {
     filename: 'json-rules-engine.bundle.js',
-    path: path.join(__dirname, 'vendor'),
+    path: path.join(__dirname, '..', 'vendor'),
   },
 });
 

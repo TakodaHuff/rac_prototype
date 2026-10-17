@@ -1,9 +1,9 @@
 // Sanity check for logic.js against the project's rules.json.
-// Run with: node test-logic.js
+// Run with: npm test (or node test/test-logic.js)
 const fs = require('fs');
-const RaC = require('./logic.js');
+const RaC = require('../js/logic.js');
 
-const rules = JSON.parse(fs.readFileSync(__dirname + '/rules.json', 'utf8'));
+const rules = JSON.parse(fs.readFileSync(__dirname + '/../rules.json', 'utf8'));
 
 function assert(cond, msg) {
   if (!cond) throw new Error('FAILED: ' + msg);
@@ -21,9 +21,9 @@ async function main() {
   console.log('Validation warnings:', warnings);
   assert(errors.length === 0, 'rules.json validates with no errors');
 
-  // 1c) Mirrors app.js's own validateFactValue (the UI's input validation),
+  // 1b) Mirrors js/app.js's own validateFactValue (the UI's input validation),
   //     so the test suite checks the same rule the browser enforces. Kept
-  //     here, not imported from app.js, since app.js is browser-only code
+  //     here, not imported from js/app.js, since it is browser-only code
   //     (uses window/document) and can't be required() under Node.
   function validateFactValue(attribute, value) {
     if (!attribute) return null;

@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "Calculation example (Ch. 25 ABL, simplified)",
+    "description": "Shows calculated variables (formula + constants) and a three-way choice modelled as two chained yes/no nodes on one fact. Not the real rule set.",
+    "legalSource": "Aktiebolagslagen (2005:551) 25 kap. 13-17 §§",
+    "lawUrl": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/aktiebolagslag-2005551_sfs-2005-551/"
+  },
+  "constants": {
+    "deferred_tax_rate": 0.206
+  },
+  "attributes": [
+    { "id": "share_capital", "label": "Registered share capital", "type": "number", "unit": "SEK", "min": 25000, "source": "1 kap. 5 § ABL" },
+    { "id": "book_equity", "label": "Equity in the balance sheet", "type": "number", "unit": "SEK", "source": "25 kap. 14 § ABL" },
+    { "id": "untaxed_reserves", "label": "Untaxed reserves", "type": "number", "unit": "SEK", "min": 0, "default": 0, "source": "25 kap. 14 § ABL" },
+    { "id": "adjustments", "label": "Adjustments under 25:14 st. 1 p. 1-3 ABL", "type": "number", "unit": "SEK", "default": 0, "source": "25 kap. 14 § ABL" },
+    { "id": "equity", "label": "Equity under 25:14 ABL", "type": "number", "unit": "SEK", "formula": "book_equity + untaxed_reserves * (1 - deferred_tax_rate) + adjustments", "source": "25 kap. 14 § ABL" },
+    { "id": "equity_ratio", "label": "Equity as a share of registered share capital", "type": "number", "formula": "equity / share_capital", "step": 0.0001, "source": "25 kap. 13 § ABL" },
+    { "id": "second_meeting", "label": "Second control meeting", "type": "enum", "values": ["Held in time", "Not held, deadline still running", "Not held, deadline passed"], "source": "25 kap. 16 § ABL" }
+  ],
+  "start": "G1",
+  "nodes": {
+    "G1": {
+      "type": "decision",
+      "question": "Is the company's equity below half of the registered share capital?",
+      "fact": "equity_ratio", "operator": "lessThan", "value": 0.5,
+      "supportiveText": "Enter the figures below. Equity is the balance-sheet equity plus 79.4 % of untaxed reserves (20.6 % counts as deferred tax), plus any adjustments.",
+      "citation": "25 kap. 13 § ABL",
+      "true": "G8", "false": "End_1"
+    },
+    "G8": {
+      "type": "decision",
+      "question": "What is the status of the second control meeting?",
+      "fact": "second_meeting", "operator": "equal", "value": "Held in time",
+      "citation": "25 kap. 16 § ABL",
+      "true": "End_4", "false": "G8b"
+    },
+    "G8b": {
+      "type": "decision",
+      "question": "Is the deadline for the second control meeting still running?",
+      "fact": "second_meeting", "operator": "equal", "value": "Not held, deadline still running",
+      "supportiveText": "Answered by the previous question, so it isn't asked again.",
+      "citation": "25 kap. 16 § ABL",
+      "true": "End_P", "false": "E17"
+    },
+    "End_1": { "type": "outcome", "label": "No control balance sheet required (§13)", "description": "" },
+    "End_4": { "type": "outcome", "label": "Second control meeting held in time (§16)", "description": "" },
+    "End_P": { "type": "outcome", "label": "Deadline not yet passed – hold second control meeting (§16)", "description": "" },
+    "E17": { "type": "outcome", "label": "Grounds for compulsory liquidation (§17)", "description": "" }
+  }
+}

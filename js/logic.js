@@ -8,7 +8,7 @@
  *  - CSV export
  *
  * No DOM/browser APIs are used here so this file can be loaded both in the
- * browser (index.html) and directly in Node for testing (node test.js).
+ * browser (index.html) and directly in Node for testing (npm test).
  */
 
 (function (root, factory) {
