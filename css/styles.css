@@ -169,8 +169,7 @@ header {
 .theme-toggle svg[hidden] { display: none; }
 /* The Check view hides everything meant for authors. */
 body.view-check .toolbar,
-body.view-check .tabs,
-body.view-check .author-only { display: none; }
+body.view-check .tabs { display: none; }
 .header-eyebrow {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -505,7 +504,7 @@ section.builder-block h3 {
     --text: #000000; --muted: #333333; --accent: #000000; --accent-ink: #ffffff;
   }
   @page { margin: 18mm; }
-  header, .toolbar, .tabs, .law-title, .no-print, .author-only { display: none !important; }
+  header, .toolbar, .tabs, .law-title, .no-print { display: none !important; }
   main { padding: 0; max-width: none; }
   .card { border: none; padding: 0; max-width: none; }
   .print-only { display: block; }

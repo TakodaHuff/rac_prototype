@@ -47,7 +47,7 @@ npm run import:bpmn -- docs/final.bpmn
 | Start event | `start` |
 | Task or intermediate event with one outgoing arrow | passed through |
 
-Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, and the validation result.
+Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, which labels to review, and the validation result. It also stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
 
 Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`.
 
@@ -104,7 +104,7 @@ node scripts/runner.js decide examples/calculation-example.json '{"equity_ratio"
 node scripts/runner.js test rules.json path/to/our-test-cases.csv --log docs/our-test-run.log
 ```
 
-The test file uses the columns of the generated suite: `test_id, description`, one column per variable id, `expected_outcome` (the outcome label, its node id, or `ERROR`), `expected_path(node_ids)` (e.g. `Q1_1>Q1_2>End_1`; empty for `ERROR`) and `edge_class`. Empty cells are missing inputs.
+The test file uses the columns of the generated suite: `test_id, description`, one column per variable id, `expected_outcome` (the outcome label, its node id, or `ERROR`), `expected_path(node_ids)` (e.g. `Q1_1>Q1_2>End_1`; empty for `ERROR`) and `edge_class`. Empty cells are missing inputs. Any other column name is rejected, so a misspelled variable id is reported instead of being read as a missing input.
 
 ## Files
 
@@ -125,7 +125,7 @@ docs/               BPMN source diagram and report deliverables
 - `index.html` — markup and the page itself; styles are in `css/styles.css`.
 - `js/logic.js` — condition evaluation, rules and input validation (data dictionary), `decide()`, path traversal, test-suite generation and running. No DOM; runs in Node.
 - `js/app.js` — UI, built on `js/logic.js`.
-- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN in `docs/` gives the same tree as `rules.json`.
+- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN named in `meta.bpmnFile` gives the same tree as `rules.json`.
 - `scripts/runner.js` — the command-line runner (`npm run decide`, `npm run test:suite`).
 - `scripts/bpmn-to-rules.js` — the BPMN importer (`npm run import:bpmn`).
 - `scripts/build-docs.js` — regenerates the `docs/` report files from `rules.json` (`npm run build:docs`).
@@ -196,6 +196,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 - `meta.intro`, `meta.audience`, `meta.disclaimer`: shown on the intro screen; the disclaimer is also printed on the result. `meta.description` is for authors only and isn't shown.
 - `glossary`: when a question contains a `term` (case-insensitive), its `definition` is shown under it. Terms whose definition is empty or `TODO` are hidden. Edit these in the file directly; the Build tab has no glossary editor.
 - `meta.shortTitle` and `meta.subtitle`: the page header (fall back to `meta.title` and `meta.legalSource`).
+- `meta.bpmnFile`: the BPMN this file was imported from (set by `npm run import:bpmn`, checked by `npm test`).
 - `meta.lawUrl`: the law text on riksdagen.se. A citation like `25 kap. 13 § ABL` or `Ch. 25 Sec. 13 Companies Act` links to `lawUrl#K25P13` (`12 b §` → `#K1P12b`, `25 kap. ABL` → `#K25`; ranges and lists use their first paragraph). Nodes without a citation show `meta.legalSource`.
 - Outcome node: leaf. `label` is shown and used as `expected_outcome`.
 - Operators: `equal, notEqual, lessThan, lessThanInclusive, greaterThan, greaterThanInclusive, in, notIn`.

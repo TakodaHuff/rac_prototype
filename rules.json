@@ -8,7 +8,8 @@
     "lawUrl": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/aktiebolagslag-2005551_sfs-2005-551/",
     "intro": "This tool walks you through the rules on control balance sheets and the duty to liquidate in Chapter 25 of the Swedish Companies Act (aktiebolagslagen). Based on your answers, it shows which step of the process applies to the company and what follows from it.",
     "audience": "Board members of Swedish limited companies (aktiebolag) whose equity may have fallen below half of the registered share capital, and the accountants, auditors and students who work with these rules.",
-    "disclaimer": "This tool gives general guidance only and is not legal advice. For a specific case, consult a lawyer or an accountant."
+    "disclaimer": "This tool gives general guidance only and is not legal advice. For a specific case, consult a lawyer or an accountant.",
+    "bpmnFile": "docs/control-balance-sheet-website-v2.bpmn"
   },
   "attributes": [
     { "id": "q1_1_equity_below_half", "label": "Reason to believe equity (Ch. 25 Sec. 14) is below half of the registered share capital?", "type": "boolean", "example": true, "source": "Ch. 25 Sec. 13 para. 1 pt. 1 Companies Act" },

@@ -2,10 +2,13 @@
  * logic.js
  * Pure, DOM-free logic for the Rule-as-Code prototype:
  *  - condition evaluation (per-node, json-rules-engine style: {fact, operator, value})
- *  - rules.json structural validation
+ *  - input validation against the data dictionary, and decide(): the
+ *    decision service used by the runner and the tests
+ *  - rules.json validation: the tree and the data dictionary
  *  - exhaustive root-to-outcome path traversal with per-fact constraint narrowing
  *  - automatic test-suite generation (normal / boundary / negative rows)
- *  - CSV export
+ *  - CSV export, and running a test-suite CSV (outcome and path per row)
+ *  - the data dictionary table for the report
  *
  * No DOM/browser APIs are used here so this file can be loaded both in the
  * browser (index.html) and directly in Node for testing (npm test).
@@ -145,7 +148,8 @@
   // ---------------------------------------------------------------------
   // Every input is checked against its entry in rules.attributes (the data
   // dictionary) before the engine sees it: type, range, allowed values, and
-  // the null policy (required / default). The UI, the runner and the tests
+  // the null policy (a missing value is an error unless there is a default).
+  // The UI, the runner and the tests
   // all use these functions, so the rules are enforced in one place.
 
   function isMissing(value) {
@@ -759,10 +763,11 @@
     return rows.filter((r) => r.some((c) => c.trim() !== ''));
   }
 
-  // Turns a CSV cell into a value of the variable's type: "" is missing,
-  // "true"/"false" become booleans, numeric text becomes a number. Anything
-  // else stays text, so wrong types still reach the validation.
-  function cellToValue(attribute, raw) {
+  // Turns text (a CSV cell, an editor box) into a value of the variable's
+  // type: "" is missing, "true"/"false" become booleans, numeric text
+  // becomes a number. Anything else stays text, so wrong types still reach
+  // the validation.
+  function textToValue(attribute, raw) {
     if (raw === '') return undefined;
     if (attribute.type === 'boolean') return raw === 'true' ? true : raw === 'false' ? false : raw;
     if (attribute.type === 'number') {
@@ -790,13 +795,21 @@
     if (col('test_id') < 0 || col('expected_outcome') < 0 || pathCol < 0) {
       throw new Error('The test file needs the columns test_id, expected_outcome and expected_path(node_ids).');
     }
+    // A misspelled variable column would otherwise be read as a missing
+    // input, and the test would fail for a confusing reason.
+    const known = new Set(['test_id', 'description', 'expected_outcome', 'expected_path(node_ids)', 'expected_path', 'edge_class']
+      .concat((rules.attributes || []).map((a) => a.id)));
+    const unknown = header.filter((h) => h && !known.has(h));
+    if (unknown.length) {
+      throw new Error('Unknown column(s) in the test file: ' + unknown.join(', ') + '. Input columns must be variable ids from the data dictionary.');
+    }
 
     const results = [];
     for (const cells of rows.slice(1)) {
       const get = (i) => (i >= 0 && cells[i] !== undefined ? cells[i] : '');
       const inputs = {};
       for (const attribute of rules.attributes || []) {
-        const value = cellToValue(attribute, get(col(attribute.id)));
+        const value = textToValue(attribute, get(col(attribute.id)));
         if (value !== undefined) inputs[attribute.id] = value;
       }
       const actual = await decide(rules, inputs);
@@ -904,15 +917,14 @@
     evaluateCondition,
     loadRealEngine,
     getEngineStatus,
-    run,
     decide,
     validateValue,
-    validateInputs,
     validateRules,
     traverseAllPaths,
     generateTestSuite,
     testSuiteToCSV,
     runTestSuiteCSV,
+    textToValue,
     dataDictionary,
     dataDictionaryToCSV,
     valueForBranch,

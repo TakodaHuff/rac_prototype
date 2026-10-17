@@ -101,7 +101,7 @@
       $all('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'play'));
       $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-play'));
     }
-    if (rules) renderPlay(); // author-only parts of Play depend on the view
+    if (rules) renderPlay(); // Play's error notice depends on the view
   }
 
   function initViewSwitch() {
@@ -614,14 +614,14 @@
         renderNodesEditor(); renderJsonPreview();
       })));
       row.appendChild(td(input(attr.label, (v) => { attr.label = v; renderJsonPreview(); })));
-      row.appendChild(td(select(['number', 'boolean', 'enum', 'string'], attr.type, (v) => { attr.type = v; renderAttributesEditor(); renderJsonPreview(); })));
+      row.appendChild(td(select(RaC.ATTRIBUTE_TYPES, attr.type, (v) => { attr.type = v; renderAttributesEditor(); renderJsonPreview(); })));
       row.appendChild(td(attr.type === 'number' ? input(attr.min ?? '', (v) => { attr.min = v === '' ? undefined : Number(v); renderJsonPreview(); }, 'number') : el('span', { text: '—' })));
       row.appendChild(td(attr.type === 'number' ? input(attr.max ?? '', (v) => { attr.max = v === '' ? undefined : Number(v); renderJsonPreview(); }, 'number') : el('span', { text: '—' })));
       row.appendChild(td(attr.type === 'number' ? input(attr.unit || '', (v) => { setOptional(attr, 'unit', v); renderJsonPreview(); }) : el('span', { text: '—' })));
       row.appendChild(td(attr.type === 'enum' ? input((attr.values || []).join(', '), (v) => { attr.values = v.split(',').map((s) => s.trim()).filter(Boolean); renderNodesEditor(); renderJsonPreview(); }) : el('span', { text: '—' })));
       // Default (null policy) and example are typed like the variable itself.
-      row.appendChild(td(input(attr.default ?? '', (v) => { setOptional(attr, 'default', typedValue(attr, v)); renderJsonPreview(); })));
-      row.appendChild(td(input(attr.example ?? '', (v) => { setOptional(attr, 'example', typedValue(attr, v)); renderJsonPreview(); })));
+      row.appendChild(td(input(attr.default ?? '', (v) => { setOptional(attr, 'default', RaC.textToValue(attr, v)); renderJsonPreview(); })));
+      row.appendChild(td(input(attr.example ?? '', (v) => { setOptional(attr, 'example', RaC.textToValue(attr, v)); renderJsonPreview(); })));
       row.appendChild(td(input(attr.source || '', (v) => { attr.source = v; renderJsonPreview(); })));
       row.appendChild(td(el('button', { class: 'btn btn-danger-outline', text: '✕', onclick: () => { rules.attributes.splice(i, 1); renderBuild(); } })));
       tbody.appendChild(row);
@@ -636,13 +636,7 @@
     }));
   }
 
-  // Text from an editor box as a value of the variable's type ("" = unset).
-  function typedValue(attr, v) {
-    if (v === '') return undefined;
-    if (attr.type === 'boolean') return v === 'true' ? true : v === 'false' ? false : v;
-    if (attr.type === 'number' && v.trim() !== '' && !Number.isNaN(Number(v))) return Number(v);
-    return v;
-  }
+  // Sets an optional field, or removes it when the value is empty.
   function setOptional(obj, key, value) {
     if (value === undefined || value === '') delete obj[key]; else obj[key] = value;
   }

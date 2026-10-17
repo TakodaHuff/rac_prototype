@@ -41,7 +41,8 @@ function readElements(xml) {
   const kinds = 'startEvent|endEvent|exclusiveGateway|inclusiveGateway|parallelGateway|eventBasedGateway|complexGateway|' +
     'sequenceFlow|task|userTask|serviceTask|scriptTask|businessRuleTask|manualTask|sendTask|receiveTask|' +
     'intermediateThrowEvent|intermediateCatchEvent|subProcess|callActivity';
-  const re = new RegExp('<(?:[\\w-]+:)?(' + kinds + ')\\b([^>]*?)/?>', 'g');
+  // Attribute values may contain ">", so quoted strings are matched as a whole.
+  const re = new RegExp('<(?:[\\w-]+:)?(' + kinds + ')\\b((?:[^>"]|"[^"]*")*?)/?>', 'g');
   const out = [];
   let m;
   while ((m = re.exec(xml))) {
@@ -60,7 +61,9 @@ function readElements(xml) {
 // { question: "Question text?", citation: "Ch. 25 Sec. 13 Companies Act" }.
 // Only a final bracket that looks like a legal reference counts as citation.
 function splitQuestion(name) {
-  let text = name.replace(/^Q?\d+(?:[._]\d+)*[a-z]?[.:)]?\s+/i, '');
+  // The numbering is "Q1", "Q1.1", "Q4_1a" or "1.1"; a plain number such as
+  // "2 weeks …" belongs to the question.
+  let text = name.replace(/^(?:Q\s?\d+(?:[._]\d+)*[a-z]?|\d+(?:[._]\d+)+[a-z]?)[.:)]?\s+/i, '');
   let citation = '';
   const m = /\s*\(([^()]*)\)\s*$/.exec(text);
   if (m && /\b(Ch\.|Chapter|Sec\.|Section|kap\.|§|Act|lagen|ABL)/i.test(m[1])) {
@@ -134,7 +137,7 @@ function bpmnToRules(xml, previous) {
   const nodes = {};
   const attributes = [];
   const usedAttrIds = new Set();
-  const report = { added: [], removed: [], changed: [], needsSupportiveText: [], newVariables: [] };
+  const report = { added: [], removed: [], changed: [], needsSupportiveText: [], newVariables: [], reviewLabels: [] };
 
   for (const el of elements) {
     if (el.kind === 'exclusiveGateway') {
@@ -152,8 +155,17 @@ function bpmnToRules(xml, previous) {
       if (!branches.yes || !branches.no) errors.push('Gateway "' + el.id + '" needs one "Yes" and one "No" arrow.');
 
       // The variable: reuse the old one for this node, else a new yes/no variable.
-      let attr = old && prevAttrs[old.fact];
-      if (!attr) {
+      let attr = old && prevAttrs[old.fact] ? Object.assign({}, prevAttrs[old.fact]) : null;
+      if (attr) {
+        // Keep the data dictionary in step with the BPMN: a source or label
+        // that copied the old citation or question follows the new one; a
+        // label written by hand is kept but listed for review.
+        if (citation && old.citation !== citation && attr.source === old.citation) attr.source = citation;
+        if (old.question !== question) {
+          if (attr.label === old.question) attr.label = question;
+          else report.reviewLabels.push(attr.id + ' (question ' + el.id + ' changed)');
+        }
+      } else {
         let id = el.id.toLowerCase();
         while (prevAttrs[id] || usedAttrIds.has(id)) id += '_';
         attr = { id, label: question, type: 'boolean', example: true, source: citation || undefined };
@@ -261,6 +273,9 @@ function main() {
     process.exit(1);
   }
 
+  // Remember which BPMN this rules.json came from (relative to the project
+  // folder); npm test re-imports it and compares the two.
+  rules.meta.bpmnFile = path.relative(path.join(__dirname, '..'), path.resolve(bpmnFile)).split(path.sep).join('/');
   fs.writeFileSync(outFile, formatRules(rules));
   const count = (type) => Object.values(rules.nodes).filter((n) => n.type === type).length;
   console.log('Wrote ' + outFile + ': ' + count('decision') + ' questions, ' + count('outcome') + ' outcomes, ' + rules.attributes.length + ' variables.');
@@ -269,6 +284,7 @@ function main() {
   list('Removed nodes', report.removed);
   list('Changed nodes', report.changed);
   list('New variables (yes/no; check type, label and example in the data dictionary)', report.newVariables);
+  list('Variable labels to review (their question changed in the BPMN)', report.reviewLabels);
   list('Questions without supportive text (stödtext)', report.needsSupportiveText);
 
   const { errors: ruleErrors, warnings } = RaC.validateRules(rules);
