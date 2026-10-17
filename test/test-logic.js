@@ -34,6 +34,7 @@ async function main() {
     ['an invalid example value', (r) => { r.attributes[0].example = 'yes'; }, /"example" is "yes"/],
     ['a number operator on a non-number variable', (r) => { r.nodes[r.start].operator = 'lessThan'; }, /needs a number variable/],
     ['an enum without values', (r) => { r.attributes[0].type = 'enum'; delete r.attributes[0].example; }, /non-empty "values" list/],
+    ['a glossary term listed twice', (r) => { r.glossary = (r.glossary || []).concat([{ term: 'Duplicate', definition: 'x' }, { term: 'duplicate', definition: 'y' }]); }, /listed twice/],
   ];
   for (const [name, breakIt, expected] of brokenCases) {
     const broken = copy(rules);

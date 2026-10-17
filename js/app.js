@@ -323,7 +323,7 @@
     if (supportive) card.appendChild(el('p', { class: 'supportive', text: supportive }));
     const source = legalSourceLine(node.citation);
     if (source) card.appendChild(source);
-    const terms = glossaryFor([node.question, supportive].join(' '));
+    const terms = glossaryFor([node.question, supportive].join(' '), 'question');
     if (terms) card.appendChild(terms);
 
     const attribute = attributesById[node.fact];
@@ -456,24 +456,22 @@
     ]));
   }
 
-  // Glossary terms (rules.json "glossary": [{ term, definition }]) that
-  // appear in the given text, as a collapsible list. Terms whose definition
-  // is still empty or a TODO placeholder are left out.
-  function glossaryFor(text) {
-    const lower = String(text || '').toLowerCase();
-    const found = (rules.glossary || []).filter((g) => {
-      if (!g.term || !userText(g.definition)) return false;
-      const re = new RegExp('\\b' + g.term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-      return re.test(lower);
-    });
+  // Glossary terms (rules.json "glossary": [{ term, swedish, definition,
+  // source }]) that appear in the given text, as a collapsible list with the
+  // Swedish term and the legal source. Terms whose definition is still empty
+  // or a TODO placeholder are left out. `where` names the place in the
+  // summary line: "question" or "result".
+  function glossaryFor(text, where) {
+    const found = (rules.glossary || []).filter((g) =>
+      g && g.term && userText(g.definition) && RaC.glossaryTermRegExp(g.term).test(String(text || '')));
     if (!found.length) return null;
     const list = el('dl', { class: 'glossary-list' });
     found.forEach((g) => {
-      list.appendChild(el('dt', { text: g.term }));
-      list.appendChild(el('dd', { text: userText(g.definition) }));
+      list.appendChild(el('dt', {}, [g.term].concat(g.swedish ? [el('span', { class: 'glossary-sv', text: ' (' + g.swedish + ')' })] : [])));
+      list.appendChild(el('dd', {}, [userText(g.definition)].concat(g.source ? [el('span', { class: 'glossary-source', text: 'Source: ' + g.source })] : [])));
     });
     return el('details', { class: 'glossary' }, [
-      el('summary', { text: found.length === 1 ? 'What does "' + found[0].term + '" mean?' : 'Terms used in this question' }),
+      el('summary', { text: found.length === 1 ? 'What does "' + found[0].term + '" mean?' : 'Terms used in this ' + (where || 'question') }),
       list
     ]);
   }
@@ -490,6 +488,10 @@
     card.appendChild(el('div', { class: 'outcome-badge', text: node.label || playState.currentId }));
     const description = userText(node.description);
     if (description) card.appendChild(el('p', { text: description }));
+    // Terms in the outcome itself (e.g. "compulsory liquidation"). Not
+    // printed: a collapsed list would only print its summary line.
+    const outcomeTerms = glossaryFor([node.label, description].join(' '), 'result');
+    if (outcomeTerms) { outcomeTerms.classList.add('no-print'); card.appendChild(outcomeTerms); }
 
     card.appendChild(el('h4', { text: 'Your answers' }));
     const answers = el('ol', { class: 'answers-list' });

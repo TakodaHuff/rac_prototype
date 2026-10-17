@@ -281,6 +281,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .glossary-list dt { font-weight: 600; }
 .glossary-list dd { margin: 2px 0 8px; color: var(--muted); }
 .glossary-list dd:last-child { margin-bottom: 0; }
+.glossary-sv { font-weight: 400; font-style: italic; color: var(--muted); }
+.glossary-source { display: block; margin-top: 2px; font-size: 12px; font-family: var(--font-mono); }
 
 /* ===== Buttons ===== */
 

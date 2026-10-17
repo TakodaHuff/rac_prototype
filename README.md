@@ -126,7 +126,7 @@ vendor/             prebuilt json-rules-engine bundle
 scripts/            build tooling (not loaded by the site)
 test/               npm test
 examples/           example rule files
-docs/               report deliverables (data dictionary, test suite)
+docs/               report deliverables (data dictionary, glossary, test suite)
 ```
 
 - `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Author view only change the rules in the browser tab until you download them.
@@ -140,7 +140,7 @@ docs/               report deliverables (data dictionary, test suite)
 - `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
 - `rules.bpmn` — the Law students' decision tree in BPMN; `rules.json` is imported from it (node IDs match).
-- `docs/data-dictionary.csv`/`.json`, `docs/test-suite-full.csv` — generated from `rules.json` for the report by `npm run build:docs`. `npm test` fails if they are out of date.
+- `docs/data-dictionary.csv`/`.json`, `docs/glossary.csv`, `docs/test-suite-full.csv` — generated from `rules.json` for the report by `npm run build:docs`. `npm test` fails if they are out of date.
 
 ## Condition evaluation
 
@@ -160,7 +160,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 
 ## Tabs
 
-- **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome, the decision path (node IDs), a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
+- **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation (with the Swedish term and legal source) of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome and the glossary terms it uses, the decision path (node IDs), a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
 - **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** and validation lists them until you choose another. Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
 - **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
 
@@ -173,7 +173,9 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
     "description": "...", "legalSource": "...", "lawUrl": "https://www.riksdagen.se/...",
     "intro": "What this tool checks.", "audience": "Who it is for.", "disclaimer": "Not legal advice."
   },
-  "glossary": [ { "term": "control balance sheet", "definition": "..." } ],
+  "glossary": [
+    { "term": "control balance sheet", "swedish": "kontrollbalansräkning", "definition": "...", "source": "Ch. 25 Secs. 13–14 Companies Act." }
+  ],
   "attributes": [
     { "id": "value", "label": "Value of the gift", "type": "number", "min": 0, "unit": "SEK", "example": 500, "source": "..." },
     { "id": "gift_type", "label": "Gift type", "type": "enum", "values": ["Christmas", "Anniversary", "Other"], "example": "Christmas", "source": "..." },
@@ -202,7 +204,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 - Decision node: one condition, two targets (`true`, `false`).
 - `inputMode: "yesno"`: ask the condition as Yes/No. For number-threshold questions; automatic for boolean facts.
 - `meta.intro`, `meta.audience`, `meta.disclaimer`: shown on the intro screen; the disclaimer is also printed on the result. `meta.description` is for authors only and isn't shown.
-- `glossary`: when a question contains a `term` (case-insensitive), its `definition` is shown under it. Terms whose definition is empty or `TODO` are hidden. Edit these in the file directly; the Build tab has no glossary editor.
+- `glossary`: the defined legal terms, written by the Law team. When a question or an outcome contains a `term` (whole words, case-insensitive), it is shown under it with its `swedish` term, `definition` and `source`. Terms whose definition is empty or `TODO` are hidden. `validateRules` reports a duplicate term as an error, and a missing definition or source, or a term that appears in no question or outcome, as a warning. `docs/glossary.csv` is generated from it for the report. Edit it in the file directly; the Build tab has no glossary editor.
 - `meta.shortTitle` and `meta.subtitle`: the page header (fall back to `meta.title` and `meta.legalSource`).
 - `meta.bpmnFile`: the BPMN this file was imported from (set by `npm run import:bpmn`, checked by `npm test`).
 - `meta.lawUrl`: the law text on riksdagen.se. A citation like `25 kap. 13 § ABL` or `Ch. 25 Sec. 13 Companies Act` links to `lawUrl#K25P13` (`12 b §` → `#K1P12b`, `25 kap. ABL` → `#K25`; ranges and lists use their first paragraph). Nodes without a citation show `meta.legalSource`.

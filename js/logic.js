@@ -4,11 +4,11 @@
  *  - condition evaluation (per-node, json-rules-engine style: {fact, operator, value})
  *  - input validation against the data dictionary, and decide(): the
  *    decision service used by the runner and the tests
- *  - rules.json validation: the tree and the data dictionary
+ *  - rules.json validation: the tree, the data dictionary and the glossary
  *  - exhaustive root-to-outcome path traversal with per-fact constraint narrowing
  *  - automatic test-suite generation (normal / boundary / negative rows)
  *  - CSV export, and running a test-suite CSV (outcome and path per row)
- *  - the data dictionary table for the report, and writing rules.json
+ *  - the data dictionary and glossary tables for the report, and writing rules.json
  *
  * No DOM/browser APIs are used here so this file can be loaded both in the
  * browser (index.html) and directly in Node for testing (npm test).
@@ -259,6 +259,7 @@
       warnings.push('No "attributes" (data dictionary) declared — form rendering and validation will be limited.');
     }
     validateDataDictionary(attributes, errors, warnings);
+    validateGlossary(rules, errors, warnings);
     const attributesById = {};
     attributes.forEach((a) => { if (a && a.id) attributesById[a.id] = a; });
     const usedFacts = new Set();
@@ -397,6 +398,33 @@
         if (problem) errors.push(where + ': "' + k + '" is ' + JSON.stringify(a[k]) + ', but it ' + problem + '.');
       });
     });
+  }
+
+  // Checks the glossary: every entry has a unique term; an entry without a
+  // definition (hidden in the app until it's written), without a source, or
+  // whose term appears in no question or outcome is reported as a warning.
+  function validateGlossary(rules, errors, warnings) {
+    if (rules.glossary === undefined) return;
+    if (!Array.isArray(rules.glossary)) { errors.push('"glossary" must be a list.'); return; }
+    const texts = Object.values(rules.nodes || {})
+      .map((n) => [n.question, n.supportiveText, n.label, n.description].filter(Boolean).join(' '))
+      .join(' ').toLowerCase();
+    const seen = new Set();
+    rules.glossary.forEach((g, i) => {
+      if (!g || typeof g !== 'object' || !g.term) { errors.push('Glossary entry #' + (i + 1) + ': missing "term".'); return; }
+      const where = 'Glossary term "' + g.term + '"';
+      const key = g.term.toLowerCase();
+      if (seen.has(key)) errors.push(where + ' is listed twice.');
+      seen.add(key);
+      if (!g.definition || /^\s*TODO\b/i.test(g.definition)) warnings.push(where + ': no definition yet, so the app doesn\'t show it.');
+      if (!g.source) warnings.push(where + ': no legal "source".');
+      if (!glossaryTermRegExp(g.term).test(texts)) warnings.push(where + ' appears in no question or outcome, so the app never shows it.');
+    });
+  }
+
+  // Matches a glossary term as a whole word or phrase, ignoring case.
+  function glossaryTermRegExp(term) {
+    return new RegExp('\\b' + String(term).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
   }
 
   // Checks that a decision node's comparison value fits its variable, e.g.
@@ -879,6 +907,12 @@
     return [columns.join(',')].concat(rows.map((r) => columns.map((c) => csvEscape(r[c])).join(','))).join('\n');
   }
 
+  // The glossary (defined terms with citations) as a table for the report.
+  function glossaryToCSV(rules) {
+    const columns = ['term', 'swedish', 'definition', 'source'];
+    return [columns.join(',')].concat((rules.glossary || []).map((g) => columns.map((c) => csvEscape(g[c])).join(','))).join('\n');
+  }
+
   // ---------------------------------------------------------------------
   // Writing rules.json in the project's layout (one variable / node per line,
   // so a changed rule shows up as a small diff in git)
@@ -953,7 +987,9 @@
     textToValue,
     dataDictionary,
     dataDictionaryToCSV,
+    glossaryToCSV,
     formatRules,
+    glossaryTermRegExp,
     valueForBranch,
   };
 });

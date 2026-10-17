@@ -1,6 +1,7 @@
 // Generates the report files in docs/ from rules.json, so they can't drift
 // from the rules the site runs:
 //   docs/data-dictionary.csv / .json — the data dictionary table
+//   docs/glossary.csv                — the defined terms with their sources
 //   docs/test-suite-full.csv         — the generated test suite
 //
 //   npm run build:docs            write the files
@@ -21,6 +22,7 @@ function expectedFiles() {
   return {
     'docs/data-dictionary.csv': RaC.dataDictionaryToCSV(dictionary),
     'docs/data-dictionary.json': JSON.stringify(dictionary, null, 2),
+    'docs/glossary.csv': RaC.glossaryToCSV(rules),
     'docs/test-suite-full.csv': suite.replace(/\r\n/g, '\n'),
   };
 }
