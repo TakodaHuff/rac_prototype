@@ -21,22 +21,6 @@ async function main() {
   console.log('Validation warnings:', warnings);
   assert(errors.length === 0, 'rules.json validates with no errors');
 
-  // 1b) rules.js (the file:// fallback bundle, loaded as a plain <script>
-  //     when fetch() of rules.json is blocked) must match what build-rules.js
-  //     would generate from the CURRENT rules.json, or it's silently stale.
-  const rulesJsPath = __dirname + '/rules.js';
-  if (fs.existsSync(rulesJsPath)) {
-    const rulesJsOnDisk = fs.readFileSync(rulesJsPath, 'utf8');
-    const expectedRulesJs =
-      '// GENERATED FILE — do not edit by hand.\n' +
-      '// Run "npm run build:rules" after changing rules.json to regenerate this.\n' +
-      'window.RAC_RULES = ' + fs.readFileSync(__dirname + '/rules.json', 'utf8') + ';\n';
-    assert(rulesJsOnDisk === expectedRulesJs,
-      'rules.js matches the current rules.json (run "npm run build:rules" if this fails)');
-  } else {
-    console.log('skip - rules.js not found, skipping fallback-bundle staleness check');
-  }
-
   // 1c) Mirrors app.js's own validateFactValue (the UI's input validation),
   //     so the test suite checks the same rule the browser enforces. Kept
   //     here, not imported from app.js, since app.js is browser-only code

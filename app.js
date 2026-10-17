@@ -4,12 +4,8 @@
 
   // ---------------------------------------------------------------------
   // The rules live in one place: rules.json at the project root, fetched on
-  // startup. fetch() of a sibling file is blocked under file://, so when the
-  // page is opened directly (not served) this falls back to rules.js — a
-  // generated snapshot of the same data, loaded as a plain <script> tag,
-  // which file:// does allow. Run `npm run build:rules` after editing
-  // rules.json to regenerate that fallback; served contexts (GitHub Pages,
-  // `python3 -m http.server`) always get the live rules.json itself.
+  // startup. fetch() of a sibling file is blocked under file://, so the
+  // folder must be served (GitHub Pages, `python3 -m http.server`).
   // ---------------------------------------------------------------------
   const RULES_URL = 'rules.json';
 
@@ -22,19 +18,11 @@
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
-  function bundledFallback() {
-    return (typeof window !== 'undefined' && window.RAC_RULES && typeof window.RAC_RULES === 'object')
-      ? clone(window.RAC_RULES)
-      : null;
-  }
-
   async function loadRules() {
     let res;
     try {
       res = await fetch(RULES_URL, { cache: 'no-cache' });
     } catch (e) {
-      const fallback = bundledFallback();
-      if (fallback) return fallback;
       if (location.protocol === 'file:') {
         throw new Error('This page was opened as a file, so the browser blocks it from reading ' + RULES_URL +
           '. Serve the project folder instead: run "python3 -m http.server" in it and open http://localhost:8000/.');
@@ -42,8 +30,6 @@
       throw new Error('Could not load ' + RULES_URL + ': ' + e.message);
     }
     if (!res.ok) {
-      const fallback = bundledFallback();
-      if (fallback) return fallback;
       throw new Error('Could not load ' + RULES_URL + ' (HTTP ' + res.status + ').');
     }
     try {
