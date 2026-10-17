@@ -26,7 +26,7 @@
     <bpmn:endEvent id="Liab_1" name="Control balance sheet missing – duty under Ch. 25 Secs. 13–14 Companies Act not fulfilled. Personal liability is outside the scope of this assessment (Ch. 25 Secs. 18–20 a Companies Act)">
       <bpmn:incoming>Flow_6</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q2_2" name="Q2.2 Has the control balance sheet been reviewed by the company&#39;s auditor, or does the company have no auditor? (Ch. 25 Sec. 13 and Ch. 1 Sec. 12 b Companies Act)">
+    <bpmn:exclusiveGateway id="Q2_2" name="Q2.2 Has the control balance sheet been reviewed by the company’s auditor, or does the company neither have nor have to have an auditor? (Ch. 25 Sec. 13 and Ch. 1 Sec. 12 b Companies Act)">
       <bpmn:incoming>Flow_5</bpmn:incoming>
       <bpmn:outgoing>Flow_7</bpmn:outgoing>
       <bpmn:outgoing>Flow_8</bpmn:outgoing>
@@ -53,7 +53,7 @@
       <bpmn:outgoing>Flow_13</bpmn:outgoing>
       <bpmn:outgoing>Flow_14</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q3_3" name="Q3.3 Did the first control meeting resolve that the company shall go into liquidation? (Ch. 25 Sec. 15 Companies Act)">
+    <bpmn:exclusiveGateway id="Q3_3" name="Q3.3 Did the first control meeting resolve that the company shall go into liquidation? (Ch. 25 Sec. 15 para. 1 and Sec. 16 para. 1 Companies Act)">
       <bpmn:incoming>Flow_13</bpmn:incoming>
       <bpmn:incoming>Flow_14</bpmn:incoming>
       <bpmn:outgoing>Flow_15</bpmn:outgoing>
@@ -93,7 +93,7 @@
       <bpmn:outgoing>Flow_25</bpmn:outgoing>
       <bpmn:outgoing>Flow_26</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_3" name="Q4.3 Has the new control balance sheet been reviewed by the company&#39;s auditor, or does the company have no auditor? (Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_3" name="Has the new control balance sheet been reviewed by the company’s auditor, or does the company neither have nor have to have an auditor? (Ch. 25 Sec. 16 para. 2, Sec. 17 para. 1 pt. 2 and Ch. 1 Sec. 12 b Companies Act)">
       <bpmn:incoming>Flow_25</bpmn:incoming>
       <bpmn:outgoing>Flow_27</bpmn:outgoing>
       <bpmn:outgoing>Flow_28</bpmn:outgoing>
@@ -103,7 +103,7 @@
       <bpmn:outgoing>Flow_29</bpmn:outgoing>
       <bpmn:outgoing>Flow_30</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_5" name="Q4.5 Was the control balance sheet showing full capital cover presented at the second control meeting? (Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_5" name="Q4.5 Was a control balance sheet showing equity of at least the registered share capital presented at the second control meeting? (Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act)">
       <bpmn:incoming>Flow_29</bpmn:incoming>
       <bpmn:outgoing>Flow_31</bpmn:outgoing>
       <bpmn:outgoing>Flow_32</bpmn:outgoing>
@@ -122,7 +122,7 @@
     <bpmn:endEvent id="End_5" name="The company goes into voluntary liquidation; no compulsory liquidation under Ch. 25 Sec. 17 Companies Act">
       <bpmn:incoming>Flow_33</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q5_1" name="Q5.1 Ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act. Has an application been filed with the district court – by the board within 2 weeks, or by a board member, the MD, an auditor or a shareholder? (Ch. 25 Sec. 17 para. 2 Companies Act)">
+    <bpmn:exclusiveGateway id="Q5_1" name="Q5.1 Ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act. Has an application for liquidation been filed with the district court (by the board, which must apply within two weeks, or by a board member, the managing director, an auditor of the company or a shareholder)? (Ch. 25 Sec. 17 para. 2 Companies Act)">
       <bpmn:incoming>Flow_22</bpmn:incoming>
       <bpmn:incoming>Flow_23</bpmn:incoming>
       <bpmn:incoming>Flow_34</bpmn:incoming>
@@ -140,12 +140,12 @@
     <bpmn:endEvent id="End_7" name="The district court shall not order liquidation; no compulsory liquidation (Ch. 25 Sec. 17 para. 3 Companies Act)">
       <bpmn:incoming>Flow_37</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q5_3" name="Q5.3 Does the ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act still exist (no second meeting in time, or second meeting without full capital cover or a reviewed control balance sheet and without a liquidation resolution)?">
+    <bpmn:exclusiveGateway id="Q5_3" name="Q5.3 Does the ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act still exist (no second control meeting in time, or the control balance sheet at the second control meeting was not reviewed or did not show equity of at least the registered share capital, and the meeting did not resolve on liquidation)? (Ch. 25 Sec. 17 paras. 1 and 3 Companies Act)">
       <bpmn:incoming>Flow_38</bpmn:incoming>
       <bpmn:outgoing>Flow_39</bpmn:outgoing>
       <bpmn:outgoing>Flow_40</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="End_8" name="The district court shall order the company into liquidation, effective immediately (Ch. 25 Sec. 17 Companies Act)">
+    <bpmn:endEvent id="End_8" name="The district court shall order the company into liquidation, effective immediately (Ch. 25 Sec. 17 paras. 1 and 4 Companies Act)">
       <bpmn:incoming>Flow_39</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:endEvent id="End_9" name="No compulsory liquidation (Ch. 25 Sec. 17 Companies Act)">
@@ -213,16 +213,28 @@
           <dc:Bounds x="607" y="490.5" width="85" height="159" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="952" y="552" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="925" y="600" width="90" height="106" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q2_1_di" bpmnElement="Q2_1" isMarkerVisible="true">
         <dc:Bounds x="960" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="936" y="130" width="97" height="159" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Liab_1_di" bpmnElement="Liab_1">
+        <dc:Bounds x="1212" y="508" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1186" y="562" width="124" height="132" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q2_2_di" bpmnElement="Q2_2" isMarkerVisible="true">
         <dc:Bounds x="1220" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1255" y="350" width="90" height="146" />
+          <dc:Bounds x="1256" y="350" width="89" height="172" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q2_3_di" bpmnElement="Q2_3" isMarkerVisible="true">
@@ -243,12 +255,6 @@
           <dc:Bounds x="1714" y="187" width="88" height="106" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Liab_2_di" bpmnElement="Liab_2">
-        <dc:Bounds x="2000" y="450" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1975" y="486" width="86" height="146" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q3_2_di" bpmnElement="Q3_2" isMarkerVisible="true">
         <dc:Bounds x="2000" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
@@ -258,7 +264,7 @@
       <bpmndi:BPMNShape id="Q3_3_di" bpmnElement="Q3_3" isMarkerVisible="true">
         <dc:Bounds x="2260" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="2242" y="350" width="86" height="106" />
+          <dc:Bounds x="2242" y="354" width="86" height="132" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_3_di" bpmnElement="End_3">
@@ -297,6 +303,12 @@
           <dc:Bounds x="3026" y="650" width="79" height="132" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_P_di" bpmnElement="End_P">
+        <dc:Bounds x="3242" y="622" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3217" y="669" width="85" height="93" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q4_2_di" bpmnElement="Q4_2" isMarkerVisible="true">
         <dc:Bounds x="3300" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
@@ -306,7 +318,7 @@
       <bpmndi:BPMNShape id="Q4_3_di" bpmnElement="Q4_3" isMarkerVisible="true">
         <dc:Bounds x="3560" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="3540" y="140" width="90" height="159" />
+          <dc:Bounds x="3532" y="130" width="105" height="159" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q4_4_di" bpmnElement="Q4_4" isMarkerVisible="true">
@@ -318,7 +330,19 @@
       <bpmndi:BPMNShape id="Q4_5_di" bpmnElement="Q4_5" isMarkerVisible="true">
         <dc:Bounds x="4080" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="4139" y="177" width="90" height="146" />
+          <dc:Bounds x="4139" y="180" width="121" height="119" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_4_di" bpmnElement="End_4">
+        <dc:Bounds x="4362" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4340" y="128" width="81" height="119" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Q4_6_di" bpmnElement="Q4_6" isMarkerVisible="true">
+        <dc:Bounds x="4295" y="785" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4355" y="763" width="90" height="119" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_5_di" bpmnElement="End_5">
@@ -330,7 +354,13 @@
       <bpmndi:BPMNShape id="Q5_1_di" bpmnElement="Q5_1" isMarkerVisible="true">
         <dc:Bounds x="4600" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="4533" y="177" width="170" height="106" />
+          <dc:Bounds x="4533" y="144" width="169" height="146" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Liab_4_di" bpmnElement="Liab_4">
+        <dc:Bounds x="4792" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="4775" y="450" width="90" height="132" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q5_2_di" bpmnElement="Q5_2" isMarkerVisible="true">
@@ -348,13 +378,13 @@
       <bpmndi:BPMNShape id="Q5_3_di" bpmnElement="Q5_3" isMarkerVisible="true">
         <dc:Bounds x="5120" y="450" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="5073" y="514" width="130" height="132" />
+          <dc:Bounds x="5074" y="514" width="128" height="212" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_8_di" bpmnElement="End_8">
         <dc:Bounds x="5380" y="450" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="5357" y="356" width="113" height="93" />
+          <dc:Bounds x="5357" y="343" width="114" height="93" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_9_di" bpmnElement="End_9">
@@ -363,40 +393,10 @@
           <dc:Bounds x="5374" y="643" width="79" height="53" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="952" y="552" width="36" height="36" />
+      <bpmndi:BPMNShape id="Liab_2_di" bpmnElement="Liab_2">
+        <dc:Bounds x="2022" y="482" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="925" y="600" width="90" height="106" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Liab_1_di" bpmnElement="Liab_1">
-        <dc:Bounds x="1212" y="508" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1186" y="562" width="124" height="132" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Q4_6_di" bpmnElement="Q4_6" isMarkerVisible="true">
-        <dc:Bounds x="4295" y="785" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="4355" y="763" width="90" height="119" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_P_di" bpmnElement="End_P">
-        <dc:Bounds x="3242" y="622" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="3217" y="669" width="85" height="93" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_4_di" bpmnElement="End_4">
-        <dc:Bounds x="4362" y="92" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="4340" y="128" width="81" height="119" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Liab_4_di" bpmnElement="Liab_4">
-        <dc:Bounds x="4792" y="402" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="4775" y="450" width="90" height="132" />
+          <dc:Bounds x="1998" y="520" width="86" height="119" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0">
@@ -485,10 +485,11 @@
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
-        <di:waypoint x="1790" y="325" />
-        <di:waypoint x="2000" y="468" />
+        <di:waypoint x="1775" y="340" />
+        <di:waypoint x="1810" y="450" />
+        <di:waypoint x="2024" y="508" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1841" y="416" width="78" height="27" />
+          <dc:Bounds x="1874" y="501" width="78" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">

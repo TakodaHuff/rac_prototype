@@ -77,7 +77,7 @@
     "unit_format": "",
     "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
-    "legal_reference": "Ch. 25 Sec. 15 Companies Act"
+    "legal_reference": "Ch. 25 Sec. 15 para. 1 and Sec. 16 para. 1 Companies Act"
   },
   {
     "id": "q3_4_full_equity_at_first_meeting",
@@ -137,7 +137,7 @@
     "unit_format": "",
     "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
-    "legal_reference": "Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act"
+    "legal_reference": "Ch. 25 Sec. 16 para. 2, Sec. 17 para. 1 pt. 2 and Ch. 1 Sec. 12 b Companies Act"
   },
   {
     "id": "q4_4_full_equity_at_second_meeting",
@@ -151,7 +151,7 @@
   },
   {
     "id": "q4_5_full_equity_cbs_presented",
-    "label": "Was the control balance sheet showing full capital cover presented at the second control meeting?",
+    "label": "Was a control balance sheet showing equity of at least the registered share capital presented at the second control meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -197,6 +197,6 @@
     "unit_format": "",
     "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
-    "legal_reference": "Ch. 25 Sec. 17 para. 1 Companies Act"
+    "legal_reference": "Ch. 25 Sec. 17 paras. 1 and 3 Companies Act"
   }
 ]
