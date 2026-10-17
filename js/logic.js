@@ -31,6 +31,12 @@
 
   const NUMERIC_TYPES = new Set(['number']);
 
+  // Variable types a data dictionary entry may declare.
+  const ATTRIBUTE_TYPES = ['boolean', 'number', 'enum', 'string'];
+  // Operators that only make sense on numbers, and those that compare against a list.
+  const NUMERIC_OPERATORS = ['lessThan', 'lessThanInclusive', 'greaterThan', 'greaterThanInclusive'];
+  const LIST_OPERATORS = ['in', 'notIn'];
+
   // ---------------------------------------------------------------------
   // json-rules-engine loading — real library only, no reimplementation
   // ---------------------------------------------------------------------
@@ -116,14 +122,115 @@
       if (node.type !== 'decision') {
         throw new Error('Unknown node type "' + node.type + '" at ' + currentId);
       }
+      if (facts[node.fact] === undefined) {
+        throw new MissingInputError(node.fact, currentId);
+      }
       const branch = await evaluateCondition(node, facts);
       currentId = branch ? node.true : node.false;
     }
     throw new Error('Exceeded maximum steps — the rule graph likely has a cycle.');
   }
 
+  // Thrown by run() when a node needs a variable that has no value, instead
+  // of json-rules-engine's own "Undefined fact" error.
+  class MissingInputError extends Error {
+    constructor(field, nodeId) {
+      super('No value for "' + field + '", needed at node ' + nodeId + '.');
+      this.field = field;
+    }
+  }
+
   // ---------------------------------------------------------------------
-  // Structural validation
+  // Data dictionary: input validation
+  // ---------------------------------------------------------------------
+  // Every input is checked against its entry in rules.attributes (the data
+  // dictionary) before the engine sees it: type, range, allowed values, and
+  // the null policy (required / default). The UI, the runner and the tests
+  // all use these functions, so the rules are enforced in one place.
+
+  function isMissing(value) {
+    return value === undefined || value === null || value === '';
+  }
+
+  // Checks a present value against the entry's type, range and allowed
+  // values. Returns the problem ("must be a number") or null.
+  function valueProblem(attribute, value) {
+    switch (attribute.type) {
+      case 'number':
+        if (typeof value !== 'number' || !Number.isFinite(value)) return 'must be a number';
+        if (typeof attribute.min === 'number' && value < attribute.min) return 'must be ≥ ' + attribute.min;
+        if (typeof attribute.max === 'number' && value > attribute.max) return 'must be ≤ ' + attribute.max;
+        return null;
+      case 'boolean':
+        return typeof value === 'boolean' ? null : 'must be true or false';
+      case 'enum':
+        return Array.isArray(attribute.values) && attribute.values.includes(value)
+          ? null
+          : 'must be one of: ' + (attribute.values || []).join(', ');
+      case 'string':
+        return typeof value === 'string' ? null : 'must be text';
+      default:
+        return null;
+    }
+  }
+
+  // The same check as a full message for users, e.g. "Age must be ≥ 0."
+  function checkValue(attribute, value) {
+    const problem = valueProblem(attribute, value);
+    return problem ? (attribute.label || attribute.id) + ' ' + problem + '.' : null;
+  }
+
+  // Checks one answer to a question that was asked. Null policy: a missing
+  // answer is an error unless the variable has a default.
+  function validateValue(attribute, value) {
+    if (!attribute) return null;
+    if (isMissing(value)) {
+      return attribute.default !== undefined ? null : (attribute.label || attribute.id) + ' is required.';
+    }
+    return checkValue(attribute, value);
+  }
+
+  // Checks every value that was given and fills in defaults for missing
+  // ones. A missing value without a default is not an error here: the tree
+  // only needs the variables on its path, so run() reports it if reached.
+  // Returns { facts, errors: [{ field, error }] }.
+  function validateInputs(rules, inputs) {
+    const facts = {};
+    const errors = [];
+    for (const attribute of rules.attributes || []) {
+      let value = inputs ? inputs[attribute.id] : undefined;
+      if (isMissing(value)) {
+        if (attribute.default === undefined) continue;
+        value = attribute.default;
+      }
+      const error = checkValue(attribute, value);
+      if (error) errors.push({ field: attribute.id, error });
+      else facts[attribute.id] = value;
+    }
+    return { facts, errors };
+  }
+
+  /**
+   * The decision service: validate inputs against the data dictionary, then
+   * run the tree. This is what the CLI runner and the tests call.
+   * Returns { outcome, outcomeId, path } or, for invalid or missing input,
+   * { outcome: 'ERROR', errors: [{ field, error }], path: [] }.
+   */
+  async function decide(rules, inputs) {
+    const { facts, errors } = validateInputs(rules, inputs);
+    if (errors.length) return { outcome: 'ERROR', errors, path: [] };
+    try {
+      const result = await run(rules, facts);
+      return { outcome: outcomeLabel(rules, result.outcomeId), outcomeId: result.outcomeId, path: result.path };
+    } catch (e) {
+      if (!(e instanceof MissingInputError)) throw e;
+      const attribute = (rules.attributes || []).find((a) => a.id === e.field);
+      return { outcome: 'ERROR', errors: [{ field: e.field, error: validateValue(attribute, undefined) || e.message }], path: [] };
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Structural validation (the tree and the data dictionary)
   // ---------------------------------------------------------------------
 
   function validateRules(rules) {
@@ -143,10 +250,14 @@
     }
 
     const attributes = Array.isArray(rules.attributes) ? rules.attributes : [];
-    const attrIds = new Set(attributes.map((a) => a.id));
+    const attrIds = new Set(attributes.map((a) => a && a.id));
     if (attributes.length === 0) {
       warnings.push('No "attributes" (data dictionary) declared — form rendering and validation will be limited.');
     }
+    validateDataDictionary(attributes, errors, warnings);
+    const attributesById = {};
+    attributes.forEach((a) => { if (a && a.id) attributesById[a.id] = a; });
+    const usedFacts = new Set();
 
     const nodeIds = Object.keys(rules.nodes);
     const outcomeIds = new Set();
@@ -169,7 +280,10 @@
         }
         if (node.value === undefined) {
           errors.push('Node "' + id + '": missing "value" to compare against.');
+        } else if (attributesById[node.fact] && OPERATORS.includes(node.operator)) {
+          checkNodeValue(id, node, attributesById[node.fact], errors);
         }
+        if (node.fact) usedFacts.add(node.fact);
         if (!node.true || !rules.nodes[node.true]) {
           errors.push('Node "' + id + '": "true" target "' + node.true + '" does not exist.');
         }
@@ -185,6 +299,10 @@
     }
 
     if (outcomeIds.size === 0) errors.push('No outcome nodes found (type "outcome"). Every path must end at one.');
+
+    for (const id of attrIds) {
+      if (id && !usedFacts.has(id)) warnings.push('Variable "' + id + '" is declared but no decision node uses it.');
+    }
 
     // Cycle detection (DFS with recursion stack) — only meaningful if the
     // basic references above are all valid.
@@ -231,6 +349,69 @@
     }
 
     return { errors, warnings };
+  }
+
+  // Checks each data dictionary entry: a unique id, a known type, the
+  // fields that type needs, and that its default and example are valid.
+  function validateDataDictionary(attributes, errors, warnings) {
+    const seen = new Set();
+    attributes.forEach((a, i) => {
+      const where = 'Variable ' + (a && a.id ? '"' + a.id + '"' : '#' + (i + 1));
+      if (!a || typeof a !== 'object') { errors.push(where + ' is not an object.'); return; }
+
+      if (!a.id || typeof a.id !== 'string') errors.push(where + ': missing "id".');
+      else if (seen.has(a.id)) errors.push(where + ': the same id is declared twice.');
+      else seen.add(a.id);
+
+      if (!ATTRIBUTE_TYPES.includes(a.type)) {
+        errors.push(where + ': unknown type "' + a.type + '". Must be one of: ' + ATTRIBUTE_TYPES.join(', '));
+        return;
+      }
+      if (!a.label) warnings.push(where + ': no "label".');
+      if (!a.source) warnings.push(where + ': no legal "source".');
+      if (a.example === undefined) warnings.push(where + ': no "example" value.');
+
+      if (a.type === 'enum') {
+        if (!Array.isArray(a.values) || a.values.length === 0) errors.push(where + ': an enum needs a non-empty "values" list.');
+        else if (new Set(a.values).size !== a.values.length) errors.push(where + ': "values" contains duplicates.');
+      } else if (a.values !== undefined) {
+        warnings.push(where + ': "values" only applies to enum variables and is ignored.');
+      }
+
+      if (a.type === 'number') {
+        ['min', 'max'].forEach((k) => {
+          if (a[k] !== undefined && typeof a[k] !== 'number') errors.push(where + ': "' + k + '" must be a number.');
+        });
+        if (typeof a.min === 'number' && typeof a.max === 'number' && a.min > a.max) errors.push(where + ': "min" is greater than "max".');
+      } else if (a.min !== undefined || a.max !== undefined) {
+        warnings.push(where + ': "min"/"max" only apply to number variables and are ignored.');
+      }
+
+      ['default', 'example'].forEach((k) => {
+        if (a[k] === undefined) return;
+        const problem = valueProblem(a, a[k]);
+        if (problem) errors.push(where + ': "' + k + '" is ' + JSON.stringify(a[k]) + ', but it ' + problem + '.');
+      });
+    });
+  }
+
+  // Checks that a decision node's comparison value fits its variable, e.g.
+  // a boolean variable is compared with true/false, not with "true".
+  function checkNodeValue(id, node, attribute, errors) {
+    const where = 'Node "' + id + '"';
+    if (NUMERIC_OPERATORS.includes(node.operator) && attribute.type !== 'number') {
+      errors.push(where + ': operator "' + node.operator + '" needs a number variable, but "' + attribute.id + '" is ' + attribute.type + '.');
+      return;
+    }
+    const isList = LIST_OPERATORS.includes(node.operator);
+    if (isList && !Array.isArray(node.value)) {
+      errors.push(where + ': operator "' + node.operator + '" needs a list of values.');
+      return;
+    }
+    for (const v of isList ? node.value : [node.value]) {
+      const problem = valueProblem(attribute, v);
+      if (problem) errors.push(where + ': compares "' + attribute.id + '" with ' + JSON.stringify(v) + ', but the data dictionary says it ' + problem + '.');
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -399,8 +580,7 @@
     if (attribute.type === 'number') {
       if (kind === 'outOfRange') {
         if (typeof attribute.max === 'number') return attribute.max + 1000;
-        if (typeof attribute.min === 'number') return attribute.min - 1000;
-        return -999999;
+        return attribute.min - 1000; // only called when min or max is set
       }
       if (kind === 'wrongType') return 'not-a-number';
     }
@@ -490,14 +670,20 @@
     // 3) Negative / invalid rows — one baseline fact set, one field perturbed at a time
     const baseline = paths.length ? buildFacts(attributes, paths[0].constraints) : {};
     for (const attribute of attributes) {
+      // A missing value only matters when the path reaches its question, so
+      // that row starts from a path that uses this variable.
+      const usingPath = paths.find((p) => p.steps.some((s) => rules.nodes[s.nodeId].fact === attribute.id));
       const kinds = [];
-      if (attribute.type === 'number') kinds.push('outOfRange', 'wrongType');
+      const hasRange = typeof attribute.min === 'number' || typeof attribute.max === 'number';
+      if (attribute.type === 'number' && hasRange) kinds.push('outOfRange');
+      if (attribute.type === 'number') kinds.push('wrongType');
       if (attribute.type === 'boolean') kinds.push('wrongType');
       if (attribute.type === 'enum') kinds.push('badEnum');
-      kinds.push('missing');
+      // Missing is only an error when there is no default to fall back on.
+      if (attribute.default === undefined && usingPath) kinds.push('missing');
 
       for (const kind of kinds) {
-        const facts = Object.assign({}, baseline);
+        const facts = kind === 'missing' ? buildFacts(attributes, usingPath.constraints) : Object.assign({}, baseline);
         let desc;
         if (kind === 'missing') {
           delete facts[attribute.id];
@@ -545,6 +731,142 @@
   }
 
   // ---------------------------------------------------------------------
+  // Running a test-suite CSV (the runner)
+  // ---------------------------------------------------------------------
+  // Reads a test file with the columns test_id, description, one column per
+  // variable, expected_outcome, expected_path(node_ids) and edge_class, runs
+  // every row through decide(), and compares the outcome and the path.
+
+  // Splits CSV text into rows of cells; handles quoted cells with commas,
+  // quotes ("") and line breaks.
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], cell = '', quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quoted) {
+        if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') quoted = false;
+        else cell += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter((r) => r.some((c) => c.trim() !== ''));
+  }
+
+  // Turns a CSV cell into a value of the variable's type: "" is missing,
+  // "true"/"false" become booleans, numeric text becomes a number. Anything
+  // else stays text, so wrong types still reach the validation.
+  function cellToValue(attribute, raw) {
+    if (raw === '') return undefined;
+    if (attribute.type === 'boolean') return raw === 'true' ? true : raw === 'false' ? false : raw;
+    if (attribute.type === 'number') {
+      const n = Number(raw);
+      return raw.trim() !== '' && Number.isFinite(n) ? n : raw;
+    }
+    return raw;
+  }
+
+  function splitPath(text) {
+    return String(text || '').split(/\s*(?:>|→)\s*/).filter(Boolean);
+  }
+
+  /**
+   * Runs every row of a test CSV. Returns one result per row:
+   * { test_id, description, edge_class, pass, reason,
+   *   expected: { outcome, path }, actual: { outcome, path, errors } }
+   */
+  async function runTestSuiteCSV(rules, csvText) {
+    const rows = parseCSV(csvText);
+    if (rows.length < 2) throw new Error('The test file has no rows.');
+    const header = rows[0].map((h) => h.trim());
+    const col = (name) => header.indexOf(name);
+    const pathCol = col('expected_path(node_ids)') >= 0 ? col('expected_path(node_ids)') : col('expected_path');
+    if (col('test_id') < 0 || col('expected_outcome') < 0 || pathCol < 0) {
+      throw new Error('The test file needs the columns test_id, expected_outcome and expected_path(node_ids).');
+    }
+
+    const results = [];
+    for (const cells of rows.slice(1)) {
+      const get = (i) => (i >= 0 && cells[i] !== undefined ? cells[i] : '');
+      const inputs = {};
+      for (const attribute of rules.attributes || []) {
+        const value = cellToValue(attribute, get(col(attribute.id)));
+        if (value !== undefined) inputs[attribute.id] = value;
+      }
+      const actual = await decide(rules, inputs);
+      const expectedOutcome = get(col('expected_outcome')).trim();
+      const expectedPath = splitPath(get(pathCol));
+
+      // An outcome may be given by its label or its node id. ERROR rows
+      // don't have a path; for all others the path must match exactly.
+      const outcomeOk = expectedOutcome === actual.outcome || expectedOutcome === actual.outcomeId;
+      const pathOk = expectedOutcome === 'ERROR' || expectedPath.join('>') === actual.path.join('>');
+      let reason = '';
+      if (!outcomeOk) reason = 'outcome is "' + actual.outcome + '", expected "' + expectedOutcome + '"';
+      else if (!pathOk) reason = 'path is ' + actual.path.join('>') + ', expected ' + expectedPath.join('>');
+
+      results.push({
+        test_id: get(col('test_id')),
+        description: get(col('description')),
+        edge_class: get(col('edge_class')),
+        pass: outcomeOk && pathOk,
+        reason,
+        expected: { outcome: expectedOutcome, path: expectedPath },
+        actual: { outcome: actual.outcome, path: actual.path, errors: actual.errors },
+      });
+    }
+    return results;
+  }
+
+  // ---------------------------------------------------------------------
+  // Data dictionary table (for the report)
+  // ---------------------------------------------------------------------
+  // One row per variable with the columns the assignment asks for. Derived
+  // from rules.attributes, so the report table can't drift from the rules.
+
+  function allowedValuesText(a) {
+    if (a.type === 'boolean') return 'true / false';
+    if (a.type === 'enum') return (a.values || []).join(' / ');
+    if (a.type === 'number') {
+      const hasMin = typeof a.min === 'number', hasMax = typeof a.max === 'number';
+      if (hasMin && hasMax) return a.min + '–' + a.max;
+      if (hasMin) return '≥ ' + a.min;
+      if (hasMax) return '≤ ' + a.max;
+      return 'any number';
+    }
+    return 'any text';
+  }
+
+  function nullPolicyText(a) {
+    if (a.default !== undefined) return 'Optional — defaults to ' + String(a.default) + ' when missing.';
+    return 'Required when the decision reaches it — no default. Missing/empty value is rejected ("<label> is required.").';
+  }
+
+  function dataDictionary(rules) {
+    return (rules.attributes || []).map((a) => ({
+      id: a.id,
+      label: a.label || '',
+      type: a.type,
+      allowed_values_range: allowedValuesText(a),
+      unit_format: a.unit || a.format || '',
+      default_null_policy: nullPolicyText(a),
+      example: a.example === undefined ? '' : String(a.example),
+      legal_reference: a.source || '',
+    }));
+  }
+
+  function dataDictionaryToCSV(rows) {
+    const columns = ['id', 'label', 'type', 'allowed_values_range', 'unit_format', 'default_null_policy', 'example', 'legal_reference'];
+    return [columns.join(',')].concat(rows.map((r) => columns.map((c) => csvEscape(r[c])).join(','))).join('\n');
+  }
+
+  // ---------------------------------------------------------------------
   // Questionnaire helper
   // ---------------------------------------------------------------------
 
@@ -575,17 +897,24 @@
     }
   }
 
-  // Public API, used by app.js and test/test-logic.js.
+  // Public API, used by app.js, scripts/ and test/.
   return {
     OPERATORS,
+    ATTRIBUTE_TYPES,
     evaluateCondition,
     loadRealEngine,
     getEngineStatus,
     run,
+    decide,
+    validateValue,
+    validateInputs,
     validateRules,
     traverseAllPaths,
     generateTestSuite,
     testSuiteToCSV,
+    runTestSuiteCSV,
+    dataDictionary,
+    dataDictionaryToCSV,
     valueForBranch,
   };
 });

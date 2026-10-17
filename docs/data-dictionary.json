@@ -4,7 +4,8 @@
     "label": "Reason to believe equity (Ch. 25 Sec. 14) is below half of the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 13 para. 1 pt. 1 Companies Act"
   },
@@ -13,7 +14,8 @@
     "label": "Has enforcement under Ch. 4 Enforcement Code shown the company lacks assets to pay the claim in full?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 13 para. 1 pt. 2 Companies Act"
   },
@@ -22,7 +24,8 @@
     "label": "Has the board prepared a control balance sheet under Ch. 25 Sec. 14?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 14 Companies Act"
   },
@@ -31,7 +34,8 @@
     "label": "Has the control balance sheet been reviewed by the auditor, or does the company have no auditor?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 13 and Ch. 1 Sec. 12 b Companies Act"
   },
@@ -40,7 +44,8 @@
     "label": "Is equity under Ch. 25 Sec. 14 below half of the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 15 para. 1 Companies Act"
   },
@@ -49,7 +54,8 @@
     "label": "Has the board, as soon as possible, issued notice of the first control meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 15 para. 1 Companies Act"
   },
@@ -58,7 +64,8 @@
     "label": "Was the first control meeting held with the control balance sheet and auditor's statement presented?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 15 para. 2 Companies Act"
   },
@@ -67,7 +74,8 @@
     "label": "Did the first control meeting resolve that the company shall go into liquidation?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 15 Companies Act"
   },
@@ -76,7 +84,8 @@
     "label": "Did the control balance sheet at the first meeting show equity at least equal to the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 1 Companies Act"
   },
@@ -85,7 +94,8 @@
     "label": "Has the second control meeting been held?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 1 Companies Act"
   },
@@ -94,7 +104,8 @@
     "label": "Was it held within 8 months of the first meeting, or, after a company reorganisation during that period, within 2 months after the reorganisation ended?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 1 Companies Act"
   },
@@ -103,7 +114,8 @@
     "label": "Has the deadline (8 months, or 2 months after a company reorganisation ended) passed?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 1 Companies Act"
   },
@@ -112,7 +124,8 @@
     "label": "Has the board prepared a new control balance sheet under Ch. 25 Sec. 14 before the second control meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 2 Companies Act"
   },
@@ -121,7 +134,8 @@
     "label": "Has the new control balance sheet been reviewed by the auditor, or does the company have no auditor?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act"
   },
@@ -130,7 +144,8 @@
     "label": "Is equity under Ch. 25 Sec. 14, at the time of the second control meeting, at least equal to the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 17 para. 1 pt. 2 Companies Act"
   },
@@ -139,7 +154,8 @@
     "label": "Was the control balance sheet showing full capital cover presented at the second control meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 16 para. 2 and Sec. 17 para. 1 pt. 2 Companies Act"
   },
@@ -148,7 +164,8 @@
     "label": "Did the second control meeting resolve that the company shall go into liquidation?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 17 para. 1 pt. 2 Companies Act"
   },
@@ -157,7 +174,8 @@
     "label": "Has an application for liquidation been filed with the district court — by the board within 2 weeks, or by a board member, the MD, an auditor or a shareholder?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 17 para. 2 Companies Act"
   },
@@ -166,7 +184,8 @@
     "label": "During the court proceedings, has a full-equity control balance sheet been reviewed by the auditor and presented at a general meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 17 para. 3 Companies Act"
   },
@@ -175,7 +194,8 @@
     "label": "Does the ground for liquidation under Sec. 17 para. 1 still exist (no timely second meeting, or one without full capital cover, a reviewed control balance sheet, or a liquidation resolution)?",
     "type": "boolean",
     "allowed_values_range": "true / false",
-    "default_null_policy": "Required — no default. Missing/empty value is rejected (\"<label> is required.\").",
+    "unit_format": "",
+    "default_null_policy": "Required when the decision reaches it — no default. Missing/empty value is rejected (\"<label> is required.\").",
     "example": "true",
     "legal_reference": "Ch. 25 Sec. 17 para. 1 Companies Act"
   }

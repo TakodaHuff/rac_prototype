@@ -1,9 +1,13 @@
-// Sanity check for logic.js against the project's rules.json.
+// Automated checks for js/logic.js against the project's rules.json.
 // Run with: npm test (or node test/test-logic.js)
 const fs = require('fs');
+const path = require('path');
 const RaC = require('../js/logic.js');
+const { staleFiles } = require('../scripts/build-docs.js');
 
-const rules = JSON.parse(fs.readFileSync(__dirname + '/../rules.json', 'utf8'));
+const root = path.join(__dirname, '..');
+const rules = JSON.parse(fs.readFileSync(path.join(root, 'rules.json'), 'utf8'));
+const copy = (o) => JSON.parse(JSON.stringify(o));
 
 function assert(cond, msg) {
   if (!cond) throw new Error('FAILED: ' + msg);
@@ -15,82 +19,71 @@ async function main() {
   await RaC.loadRealEngine();
   console.log('Engine:', RaC.getEngineStatus());
 
-  // 1) Validation should pass clean
+  // 1) rules.json, including its data dictionary, validates cleanly.
   const { errors, warnings } = RaC.validateRules(rules);
-  console.log('Validation errors:', errors);
-  console.log('Validation warnings:', warnings);
+  if (errors.length) console.log('Validation errors:', errors);
+  if (warnings.length) console.log('Validation warnings:', warnings);
   assert(errors.length === 0, 'rules.json validates with no errors');
 
-  // 1b) Mirrors js/app.js's own validateFactValue (the UI's input validation),
-  //     so the test suite checks the same rule the browser enforces. Kept
-  //     here, not imported from js/app.js, since it is browser-only code
-  //     (uses window/document) and can't be required() under Node.
-  function validateFactValue(attribute, value) {
-    if (!attribute) return null;
-    if (value === undefined || value === null || value === '') return attribute.label + ' is required.';
-    if (attribute.type === 'number') {
-      if (typeof value !== 'number' || Number.isNaN(value)) return attribute.label + ' must be a number.';
-      if (typeof attribute.min === 'number' && value < attribute.min) return attribute.label + ' must be ≥ ' + attribute.min + '.';
-      if (typeof attribute.max === 'number' && value > attribute.max) return attribute.label + ' must be ≤ ' + attribute.max + '.';
-    }
-    if (attribute.type === 'boolean' && typeof value !== 'boolean') {
-      return attribute.label + ' must be true or false.';
-    }
-    if (attribute.type === 'enum' && Array.isArray(attribute.values) && !attribute.values.includes(value)) {
-      return attribute.label + ' must be one of: ' + attribute.values.join(', ');
-    }
-    return null;
+  // 2) The data dictionary checks catch broken rules files.
+  const brokenCases = [
+    ['a comparison value of the wrong type', (r) => { r.nodes[r.start].value = 'true'; }, /compares .* with "true"/],
+    ['a duplicate variable id', (r) => { r.attributes.push(copy(r.attributes[0])); }, /declared twice/],
+    ['an unknown variable type', (r) => { r.attributes[0].type = 'colour'; }, /unknown type "colour"/],
+    ['an invalid example value', (r) => { r.attributes[0].example = 'yes'; }, /"example" is "yes"/],
+    ['a number operator on a non-number variable', (r) => { r.nodes[r.start].operator = 'lessThan'; }, /needs a number variable/],
+    ['an enum without values', (r) => { r.attributes[0].type = 'enum'; delete r.attributes[0].example; }, /non-empty "values" list/],
+  ];
+  for (const [name, breakIt, expected] of brokenCases) {
+    const broken = copy(rules);
+    breakIt(broken);
+    const found = RaC.validateRules(broken).errors;
+    assert(found.some((e) => expected.test(e)), 'validateRules reports ' + name);
   }
 
-  // 2) Every root-to-outcome path should end at an outcome node
+  // 3) decide() validates inputs against the data dictionary.
+  const start = rules.nodes[rules.start];
+  const missing = await RaC.decide(rules, {});
+  assert(missing.outcome === 'ERROR' && missing.errors[0].field === start.fact,
+    'a missing answer that the path needs gives ERROR for "' + start.fact + '"');
+  const wrongType = await RaC.decide(rules, { [start.fact]: 'maybe' });
+  assert(wrongType.outcome === 'ERROR' && /must be true or false/.test(wrongType.errors[0].error),
+    'a wrong type ("maybe" for a boolean) gives ERROR');
+
+  // 4) Every root-to-outcome path ends at an outcome node.
   const { paths } = RaC.traverseAllPaths(rules);
-  console.log('\nAll paths:');
-  for (const p of paths) {
-    console.log(' ', p.steps.map(s => `${s.nodeId}=${s.branch}`).join(' > '), '->', p.outcomeId);
-  }
   assert(paths.length > 0, paths.length + ' root-to-outcome paths found');
-  assert(paths.every(p => rules.nodes[p.outcomeId].type === 'outcome'), 'every path ends at an outcome node');
+  assert(paths.every((p) => rules.nodes[p.outcomeId].type === 'outcome'), 'every path ends at an outcome node');
 
-  // 3) Generate the test suite and verify every generated "normal"/"boundary" row
-  //    actually produces the expected outcome when run back through run().
+  // 5) Every generated row gives its expected outcome and path through
+  //    decide(); negative rows must give ERROR.
   const suite = RaC.generateTestSuite(rules);
-  console.log('\nGenerated', suite.length, 'test rows');
-  let checked = 0;
+  const failures = [];
   for (const row of suite) {
-    if (row.edge_class === 'negative') continue; // checked separately below, against validateFactValue
-    const result = await RaC.run(rules, row.inputs);
-    const label = (rules.nodes[result.outcomeId] || {}).label || result.outcomeId;
-    assert(label === row.expected_outcome,
-      `${row.test_id} [${row.edge_class}] inputs=${JSON.stringify(row.inputs)} -> "${label}" (expected "${row.expected_outcome}")`);
-    checked++;
+    const result = await RaC.decide(rules, row.inputs);
+    const ok = row.edge_class === 'negative'
+      ? result.outcome === 'ERROR'
+      : result.outcome === row.expected_outcome && result.path.join('>') === row.expected_path;
+    if (!ok) failures.push(row.test_id + ' [' + row.edge_class + '] got ' + JSON.stringify(result));
   }
-  console.log(`\nChecked ${checked} generated normal/boundary rows against the engine — all consistent.`);
+  failures.slice(0, 10).forEach((f) => console.log('  ' + f));
+  const count = (cls) => suite.filter((r) => r.edge_class === cls).length;
+  assert(failures.length === 0, suite.length + ' generated rows (' + count('normal') + ' normal, ' + count('boundary') +
+    ' boundary, ' + count('negative') + ' negative) give the expected outcome and path');
 
-  // 3b) Negative/invalid rows must be rejected by validateFactValue before
-  //     they'd ever reach the engine — the engine itself has no concept
-  //     of "ERROR", so input validation is what's actually responsible for
-  //     every row the generator marked expected_outcome: 'ERROR'.
-  let negChecked = 0;
-  for (const row of suite) {
-    if (row.edge_class !== 'negative') continue;
-    const fieldErrors = (rules.attributes || [])
-      .map((a) => validateFactValue(a, row.inputs[a.id]))
-      .filter(Boolean);
-    assert(fieldErrors.length > 0,
-      `${row.test_id} [negative] ${row.description} -> correctly rejected ("${fieldErrors[0]}")`);
-    negChecked++;
-  }
-  console.log(`\nChecked ${negChecked} generated negative/invalid rows — all correctly rejected before reaching the engine.`);
+  // 6) The committed test file runs clean through the runner (outcome and path).
+  const results = await RaC.runTestSuiteCSV(rules, fs.readFileSync(path.join(root, 'docs/test-suite-full.csv'), 'utf8'));
+  results.filter((r) => !r.pass).slice(0, 10).forEach((r) => console.log('  FAIL ' + r.test_id + ': ' + r.reason));
+  assert(results.every((r) => r.pass), 'docs/test-suite-full.csv: all ' + results.length + ' rows pass');
 
-  // 4) CSV export sanity
-  const csv = RaC.testSuiteToCSV(suite, rules.attributes);
-  console.log('\n--- CSV preview (first 6 lines) ---');
-  console.log(csv.split('\r\n').slice(0, 6).join('\n'));
+  // 7) The generated report files in docs/ match the current rules.json.
+  const stale = staleFiles();
+  assert(stale.length === 0, 'docs/ files are up to date' + (stale.length ? ' (stale: ' + stale.join(', ') + ' — run "npm run build:docs")' : ''));
 
   console.log('\nALL CHECKS PASSED');
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err.message || err);
   process.exit(1);
 });

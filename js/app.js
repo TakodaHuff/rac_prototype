@@ -74,8 +74,8 @@
     (children || []).forEach((c) => e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
     return e;
   }
-  function download(filename, text) {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  function download(filename, text, type) {
+    const blob = new Blob([text], { type: (type || 'text/plain') + ';charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = el('a', { href: url, download: filename });
     document.body.appendChild(a);
@@ -221,7 +221,19 @@
 
   function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'rules'; }
 
+  // The page header and tab title come from rules.json, so another rules
+  // file gets its own name: meta.shortTitle (or meta.title) and
+  // meta.subtitle (or meta.legalSource).
+  function applyHeader() {
+    const meta = (rules && rules.meta) || {};
+    const title = meta.shortTitle || meta.title || 'Rules as Code';
+    $('header h1').textContent = title;
+    $('.header-eyebrow').textContent = ['Prototype', meta.subtitle || meta.legalSource].filter(Boolean).join(' · ');
+    document.title = title + ' – Prototype';
+  }
+
   function afterRulesChanged() {
+    applyHeader();
     playState = null;
     renderPlay();
     renderBuild();
@@ -294,8 +306,9 @@
     // for the result summary, since a yes/no question may store a
     // synthesized threshold value as the fact.
     async function commit(value, answer) {
-      // validate against the data dictionary before proceeding
-      const err = validateFactValue(attribute, value);
+      // Check the answer against the data dictionary (shared with the runner).
+      if ((value === undefined || value === '') && attribute.default !== undefined) value = attribute.default;
+      const err = RaC.validateValue(attribute, value);
       if (err) { errorLine.textContent = err; return; }
       inputWrap.querySelectorAll('button, input').forEach((n) => { n.disabled = true; });
       try {
@@ -471,8 +484,9 @@
     }
 
     const outcomePath = playState.history.map((h) => h.nodeId).concat([playState.currentId]);
-    card.appendChild(el('div', { class: 'author-only' }, [
-      el('h4', { text: 'Decision path' }),
+    // The node IDs match the decision tree, rules.json and the test suite.
+    card.appendChild(el('div', {}, [
+      el('h4', { text: 'Decision path (node IDs)' }),
       el('div', { class: 'path-trace', text: outcomePath.join('  →  ') })
     ]));
 
@@ -506,17 +520,20 @@
     return String(s).replace(/\bTODO\b(\s*\([^)]*\))?[.:]?\s*/g, '').trim();
   }
 
-  // Citations like "25 kap. 13 § ABL" link to that paragraph of the law text
-  // on riksdagen.se, whose SFS pages anchor each paragraph as #K<kap>P<§>
-  // (and each chapter as #K<kap>). Ranges and lists ("13-14 §§", "17, 20 §§")
+  // Citations link to that paragraph of the law text on riksdagen.se, whose
+  // SFS pages anchor each paragraph as #K<kap>P<§> (e.g. #K25P13, #K1P12b)
+  // and each chapter as #K<kap>. Both Swedish ("25 kap. 13 § ABL") and
+  // English ("Ch. 25 Sec. 13 Companies Act") citations work; ranges and lists
   // link to their first paragraph. Without meta.lawUrl, the citation is
   // shown as plain text.
   function citationUrl(citation) {
     const base = rules.meta && rules.meta.lawUrl;
     if (!base) return null;
-    const m = /(\d+)\s*kap\.?(?:\s*(\d+))?/i.exec(citation || '');
+    const text = citation || '';
+    const m = /(\d+)\s*kap\.?(?:\s*(\d+)(?:\s*([a-z])\b)?)?/i.exec(text) ||
+      /\b(?:Ch\.?|Chapter)\s*(\d+)(?:,?\s*(?:Sec\.?|Section|§)\s*(\d+)(?:\s*([a-z])\b)?)?/i.exec(text);
     if (!m) return base;
-    return base.split('#')[0] + '#K' + m[1] + (m[2] ? 'P' + m[2] : '');
+    return base.split('#')[0] + '#K' + m[1] + (m[2] ? 'P' + m[2] + (m[3] || '').toLowerCase() : '');
   }
 
   // Falls back to the rule's overall legal source when a node has no
@@ -531,23 +548,6 @@
     ]);
   }
 
-  function validateFactValue(attribute, value) {
-    if (!attribute) return null;
-    if (value === undefined || value === null || value === '') return attribute.label + ' is required.';
-    if (attribute.type === 'number') {
-      if (typeof value !== 'number' || Number.isNaN(value)) return attribute.label + ' must be a number.';
-      if (typeof attribute.min === 'number' && value < attribute.min) return attribute.label + ' must be ≥ ' + attribute.min + '.';
-      if (typeof attribute.max === 'number' && value > attribute.max) return attribute.label + ' must be ≤ ' + attribute.max + '.';
-    }
-    if (attribute.type === 'boolean' && typeof value !== 'boolean') {
-      return attribute.label + ' must be true or false.';
-    }
-    if (attribute.type === 'enum' && Array.isArray(attribute.values) && !attribute.values.includes(value)) {
-      return attribute.label + ' must be one of: ' + attribute.values.join(', ');
-    }
-    return null;
-  }
-
   // ---------------------------------------------------------------------
   // BUILD tab — attributes editor, node editor, validation
   // ---------------------------------------------------------------------
@@ -555,8 +555,7 @@
     renderAttributesEditor();
     renderNodesEditor(); // also renders the start-node selector
     renderMetaEditor();
-    renderValidation();
-    renderJsonPreview();
+    renderJsonPreview(); // also renders the validation
   }
 
   function renderMetaEditor() {
@@ -567,8 +566,13 @@
     title.addEventListener('input', () => { rules.meta.title = title.value; renderJsonPreview(); });
     const desc = el('input', { type: 'text', class: 'text-input wide', placeholder: 'One-line description', value: rules.meta.description || '' });
     desc.addEventListener('input', () => { rules.meta.description = desc.value; renderJsonPreview(); });
+    title.addEventListener('input', applyHeader);
     root.appendChild(el('label', { text: 'Title' }));
     root.appendChild(title);
+    root.appendChild(el('label', { text: 'Short title (page header)' }));
+    root.appendChild(input(rules.meta.shortTitle || '', (v) => { rules.meta.shortTitle = v; applyHeader(); renderJsonPreview(); }, null, 'wide'));
+    root.appendChild(el('label', { text: 'Subtitle (line above the header)' }));
+    root.appendChild(input(rules.meta.subtitle || '', (v) => { rules.meta.subtitle = v; applyHeader(); renderJsonPreview(); }, null, 'wide'));
     root.appendChild(el('label', { text: 'Description' }));
     root.appendChild(desc);
     root.appendChild(el('label', { text: 'Legal source' }));
@@ -590,8 +594,8 @@
     const table = el('table', { class: 'editor-table' });
     table.appendChild(el('thead', {}, [el('tr', {}, [
       el('th', { text: 'id' }), el('th', { text: 'label' }), el('th', { text: 'type' }),
-      el('th', { text: 'min' }), el('th', { text: 'max' }), el('th', { text: 'values (enum, comma-sep)' }),
-      el('th', { text: 'legal source' }), el('th', { text: '' })
+      el('th', { text: 'min' }), el('th', { text: 'max' }), el('th', { text: 'unit' }), el('th', { text: 'values (enum, comma-sep)' }),
+      el('th', { text: 'default' }), el('th', { text: 'example' }), el('th', { text: 'legal source' }), el('th', { text: '' })
     ])]));
     const tbody = el('tbody');
     table.appendChild(tbody);
@@ -613,7 +617,11 @@
       row.appendChild(td(select(['number', 'boolean', 'enum', 'string'], attr.type, (v) => { attr.type = v; renderAttributesEditor(); renderJsonPreview(); })));
       row.appendChild(td(attr.type === 'number' ? input(attr.min ?? '', (v) => { attr.min = v === '' ? undefined : Number(v); renderJsonPreview(); }, 'number') : el('span', { text: '—' })));
       row.appendChild(td(attr.type === 'number' ? input(attr.max ?? '', (v) => { attr.max = v === '' ? undefined : Number(v); renderJsonPreview(); }, 'number') : el('span', { text: '—' })));
+      row.appendChild(td(attr.type === 'number' ? input(attr.unit || '', (v) => { setOptional(attr, 'unit', v); renderJsonPreview(); }) : el('span', { text: '—' })));
       row.appendChild(td(attr.type === 'enum' ? input((attr.values || []).join(', '), (v) => { attr.values = v.split(',').map((s) => s.trim()).filter(Boolean); renderNodesEditor(); renderJsonPreview(); }) : el('span', { text: '—' })));
+      // Default (null policy) and example are typed like the variable itself.
+      row.appendChild(td(input(attr.default ?? '', (v) => { setOptional(attr, 'default', typedValue(attr, v)); renderJsonPreview(); })));
+      row.appendChild(td(input(attr.example ?? '', (v) => { setOptional(attr, 'example', typedValue(attr, v)); renderJsonPreview(); })));
       row.appendChild(td(input(attr.source || '', (v) => { attr.source = v; renderJsonPreview(); })));
       row.appendChild(td(el('button', { class: 'btn btn-danger-outline', text: '✕', onclick: () => { rules.attributes.splice(i, 1); renderBuild(); } })));
       tbody.appendChild(row);
@@ -626,6 +634,17 @@
         renderBuild();
       }
     }));
+  }
+
+  // Text from an editor box as a value of the variable's type ("" = unset).
+  function typedValue(attr, v) {
+    if (v === '') return undefined;
+    if (attr.type === 'boolean') return v === 'true' ? true : v === 'false' ? false : v;
+    if (attr.type === 'number' && v.trim() !== '' && !Number.isNaN(Number(v))) return Number(v);
+    return v;
+  }
+  function setOptional(obj, key, value) {
+    if (value === undefined || value === '') delete obj[key]; else obj[key] = value;
   }
 
   function renderNodesEditor() {
@@ -870,8 +889,10 @@
     }
   }
 
+  // Called after every edit: refresh the raw JSON, the validation and the flowchart.
   function renderJsonPreview() {
     $('#json-preview').textContent = JSON.stringify(rules, null, 2);
+    renderValidation();
     scheduleFlowchart();
   }
 
@@ -1053,6 +1074,11 @@
       el('button', { type: 'button', 'aria-label': 'Zoom in', title: 'Zoom in', text: '+', onclick: () => zoomFlowchart(1.25) }),
       el('button', { type: 'button', 'aria-label': 'Zoom out', title: 'Zoom out', text: '\u2212', onclick: () => zoomFlowchart(1 / 1.25) }),
       el('button', { type: 'button', 'aria-label': 'Reset zoom and position', title: 'Reset view', text: '\u2922', onclick: () => resetFlowchartView() }),
+      // Saves the diagram as an SVG file, e.g. for the report's appendix.
+      el('button', { type: 'button', 'aria-label': 'Download flowchart as SVG', title: 'Download SVG', text: '\u2193', onclick: () => {
+        const svgEl = $('svg', viewport);
+        if (svgEl) download(slug((rules.meta && rules.meta.title) || 'rules') + '-decision-tree.svg', new XMLSerializer().serializeToString(svgEl), 'image/svg+xml');
+      } }),
     ]);
     root.appendChild(controls);
     applyFlowchartTransform();
@@ -1132,6 +1158,7 @@
       $('#download-csv').disabled = true;
       return;
     }
+    applyHeader();
     initTabs();
     initFileControls();
     renderPlay();
