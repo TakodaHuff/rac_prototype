@@ -1,2 +1,4 @@
 node_modules/
-react-rules/
+.DS_Store
+# Local Claude Code settings (preview config etc.), not part of the project
+.claude/

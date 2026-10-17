@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "title": "Number and choice example (Ch. 25 ABL, simplified)",
+    "description": "Shows a number variable with a threshold and a three-way choice modelled as two chained yes/no nodes on one variable. Not the real rule set.",
+    "legalSource": "Aktiebolagslagen (2005:551) 25 kap. 13-17 §§",
+    "lawUrl": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/aktiebolagslag-2005551_sfs-2005-551/"
+  },
+  "attributes": [
+    { "id": "equity_ratio", "label": "Equity as a share of the registered share capital", "type": "number", "min": 0, "example": 0.4, "source": "25 kap. 13 § ABL" },
+    { "id": "second_meeting", "label": "Second control meeting", "type": "enum", "values": ["Held in time", "Not held, deadline still running", "Not held, deadline passed"], "example": "Held in time", "source": "25 kap. 16 § ABL" }
+  ],
+  "start": "G1",
+  "nodes": {
+    "G1": {
+      "type": "decision",
+      "question": "Is the company's equity below half of the registered share capital?",
+      "fact": "equity_ratio", "operator": "lessThan", "value": 0.5,
+      "supportiveText": "Enter equity under 25:14 ABL divided by the registered share capital, e.g. 0.4 for 40 %.",
+      "citation": "25 kap. 13 § ABL",
+      "true": "G8", "false": "End_1"
+    },
+    "G8": {
+      "type": "decision",
+      "question": "What is the status of the second control meeting?",
+      "fact": "second_meeting", "operator": "equal", "value": "Held in time",
+      "citation": "25 kap. 16 § ABL",
+      "true": "End_4", "false": "G8b"
+    },
+    "G8b": {
+      "type": "decision",
+      "question": "Is the deadline for the second control meeting still running?",
+      "fact": "second_meeting", "operator": "equal", "value": "Not held, deadline still running",
+      "citation": "25 kap. 16 § ABL",
+      "true": "End_P", "false": "E17"
+    },
+    "End_1": { "type": "outcome", "label": "No control balance sheet required (§13)", "description": "" },
+    "End_4": { "type": "outcome", "label": "Second control meeting held in time (§16)", "description": "" },
+    "End_P": { "type": "outcome", "label": "Deadline not yet passed – hold second control meeting (§16)", "description": "" },
+    "E17": { "type": "outcome", "label": "Grounds for compulsory liquidation (§17)", "description": "" }
+  }
+}
