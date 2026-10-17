@@ -8,7 +8,7 @@
  *  - exhaustive root-to-outcome path traversal with per-fact constraint narrowing
  *  - automatic test-suite generation (normal / boundary / negative rows)
  *  - CSV export, and running a test-suite CSV (outcome and path per row)
- *  - the data dictionary table for the report
+ *  - the data dictionary table for the report, and writing rules.json
  *
  * No DOM/browser APIs are used here so this file can be loaded both in the
  * browser (index.html) and directly in Node for testing (npm test).
@@ -880,6 +880,32 @@
   }
 
   // ---------------------------------------------------------------------
+  // Writing rules.json in the project's layout (one variable / node per line,
+  // so a changed rule shows up as a small diff in git)
+  // ---------------------------------------------------------------------
+
+  function inline(v) {
+    if (Array.isArray(v)) return '[' + v.map(inline).join(', ') + ']';
+    if (v && typeof v === 'object') return '{ ' + Object.entries(v).map(([k, x]) => JSON.stringify(k) + ': ' + inline(x)).join(', ') + ' }';
+    return JSON.stringify(v);
+  }
+
+  function formatRules(rules) {
+    const parts = Object.entries(rules).map(([key, value]) => {
+      let body;
+      if (key === 'attributes' || key === 'glossary') body = '[\n' + value.map((x) => '    ' + inline(x)).join(',\n') + '\n  ]';
+      else if (key === 'nodes') {
+        // A blank line before each question groups it with the outcomes it leads to.
+        body = '{\n' + Object.entries(value).map(([id, n], i) =>
+          (i > 0 && n.type === 'decision' ? '\n' : '') + '    ' + JSON.stringify(id) + ': ' + inline(n)).join(',\n') + '\n  }';
+      }
+      else body = JSON.stringify(value, null, 2).replace(/\n/g, '\n  ');
+      return '  ' + JSON.stringify(key) + ': ' + body;
+    });
+    return '{\n' + parts.join(',\n') + '\n}\n';
+  }
+
+  // ---------------------------------------------------------------------
   // Questionnaire helper
   // ---------------------------------------------------------------------
 
@@ -927,6 +953,7 @@
     textToValue,
     dataDictionary,
     dataDictionaryToCSV,
+    formatRules,
     valueForBranch,
   };
 });

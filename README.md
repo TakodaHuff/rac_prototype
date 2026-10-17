@@ -33,11 +33,15 @@ then open `http://localhost:8000/`. On GitHub Pages it works as-is.
 
 ## Importing the BPMN
 
-`scripts/bpmn-to-rules.js` turns the decision tree drawn in BPMN (bpmn.io, Camunda Modeler) into `rules.json`, keeping every node ID:
+`js/bpmn.js` turns the decision tree drawn in BPMN (bpmn.io, Camunda Modeler) into `rules.json`, keeping every node ID. It runs in two places:
 
-```
-npm run import:bpmn -- docs/final.bpmn
-```
+- **Command line** — writes `rules.json` directly:
+
+  ```
+  npm run import:bpmn -- docs/final.bpmn
+  ```
+
+- **Browser** — Author view → **Upload BPMN**. The converted rules replace the ones in the browser tab and a report shows what changed. **Download JSON** then saves them as `rules.json`; replace the file in the repo and save the BPMN in `docs/` under the same name, as the report says.
 
 | BPMN | rules.json |
 |---|---|
@@ -113,6 +117,7 @@ index.html          the page: markup only
 rules.json          the law the site runs
 css/styles.css      all styles (light and dark theme)
 js/logic.js         core logic, no DOM
+js/bpmn.js          BPMN importer (browser and command line)
 js/app.js           UI
 vendor/             prebuilt json-rules-engine bundle
 scripts/            build tooling (not loaded by the site)
@@ -121,13 +126,13 @@ examples/           example rule files
 docs/               BPMN source diagram and report deliverables
 ```
 
-- `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **Upload JSON** in the Author view only tries another file in the browser tab.
+- `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Author view only change the rules in the browser tab until you download them.
 - `index.html` — markup and the page itself; styles are in `css/styles.css`.
 - `js/logic.js` — condition evaluation, rules and input validation (data dictionary), `decide()`, path traversal, test-suite generation and running. No DOM; runs in Node.
 - `js/app.js` — UI, built on `js/logic.js`.
 - `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN named in `meta.bpmnFile` gives the same tree as `rules.json`.
 - `scripts/runner.js` — the command-line runner (`npm run decide`, `npm run test:suite`).
-- `scripts/bpmn-to-rules.js` — the BPMN importer (`npm run import:bpmn`).
+- `js/bpmn.js` — the BPMN importer, used by **Upload BPMN** and by `scripts/bpmn-to-rules.js` (`npm run import:bpmn`).
 - `scripts/build-docs.js` — regenerates the `docs/` report files from `rules.json` (`npm run build:docs`).
 - `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
@@ -148,12 +153,12 @@ If neither is available, `evaluateCondition` throws — badge reads "not loaded"
 The header switch picks the view; `#author` in the URL opens the Author view directly.
 
 - **Check a rule** (default) — only the questionnaire, for people checking the rule.
-- **Author** — adds the toolbar (New, Upload JSON, Download JSON, Download CSV, engine badge) and the Build and Test suite tabs.
+- **Author** — adds the toolbar (New, Upload JSON, Upload BPMN, Download JSON, Download CSV, engine badge) and the Build and Test suite tabs.
 
 ## Tabs
 
 - **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome, the decision path (node IDs), a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
-- **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Edits stay in the browser — **Download JSON** saves them as `rules.json`; replace the file in the repo to make them permanent.
+- **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
 - **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
 
 ## rules.json schema

@@ -180,33 +180,51 @@
   // ---------------------------------------------------------------------
   // File load / save (shared across tabs)
   // ---------------------------------------------------------------------
-  // New / Upload JSON replace the rules in this browser tab only; the site
-  // itself always starts from rules.json. Download JSON saves under that
-  // same name, ready to replace the file in the repo.
+  // New / Upload JSON / Upload BPMN replace the rules in this browser tab
+  // only; the site itself always starts from rules.json. Download JSON saves
+  // under that same name and layout, ready to replace the file in the repo.
   function initFileControls() {
     $('#new-rules').addEventListener('click', () => {
       if (!confirm('Start a new, empty rules file? Unsaved changes will be lost.')) return;
       rules = clone(EMPTY_RULES);
       afterRulesChanged();
     });
-    $('#upload-json').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          rules = JSON.parse(reader.result);
-          afterRulesChanged();
-          alert('Loaded "' + file.name + '". Check the Build tab for validation results.');
-        } catch (err) {
-          alert('Could not parse that file as JSON:\n' + err.message);
-        }
-      };
-      reader.readAsText(file);
-      e.target.value = '';
+    onFileChosen('#upload-json', (file, text) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        alert('Could not parse "' + file.name + '" as JSON:\n' + err.message);
+        return;
+      }
+      // Valid JSON but not a rules object (e.g. a list or a number) would
+      // leave the app half-loaded, so keep the current rules instead.
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        alert('"' + file.name + '" is not a rules file: it must contain one JSON object with "meta", "attributes", "start" and "nodes".');
+        return;
+      }
+      rules = parsed;
+      afterRulesChanged();
+      alert('Loaded "' + file.name + '". Check the Build tab for validation results.');
+    });
+    // The BPMN is converted with js/bpmn.js, the same code as npm run
+    // import:bpmn. Texts the BPMN doesn't hold (supportive texts, short
+    // labels, intro, variables) are taken from the rules loaded now.
+    onFileChosen('#upload-bpmn', (file, text) => {
+      const { rules: imported, errors, report } = RaCBpmn.bpmnToRules(text, rules);
+      if (errors.length) {
+        alert('Could not convert "' + file.name + '" — nothing was changed:\n\n' + errors.map((e) => '• ' + e).join('\n'));
+        return;
+      }
+      imported.meta.bpmnFile = 'docs/' + file.name;
+      rules = imported;
+      afterRulesChanged();
+      alert('Imported "' + file.name + '": ' + RaCBpmn.importReport(rules, report, RaC.validateRules(rules)) +
+        '\n\nTo make it permanent: Download JSON and replace rules.json in the repo, save the BPMN as docs/' + file.name +
+        ', then run "npm run build:docs" and "npm test".');
     });
     $('#download-json').addEventListener('click', () => {
-      download(RULES_URL, JSON.stringify(rules, null, 2));
+      download(RULES_URL, RaC.formatRules(rules), 'application/json');
     });
     // Generated at click time, so it always reflects the current edits.
     $('#download-csv').addEventListener('click', () => {
@@ -216,6 +234,18 @@
       }
       const csv = RaC.testSuiteToCSV(RaC.generateTestSuite(rules), rules.attributes || []);
       download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
+    });
+  }
+
+  // Reads the file picked in a hidden <input type="file"> as text.
+  function onFileChosen(selector, handle) {
+    $(selector).addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => handle(file, reader.result);
+      reader.readAsText(file);
+      e.target.value = ''; // so choosing the same file again still triggers
     });
   }
 

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const RaC = require('../js/logic.js');
 const { staleFiles } = require('../scripts/build-docs.js');
-const { bpmnToRules } = require('../scripts/bpmn-to-rules.js');
+const { bpmnToRules } = require('../js/bpmn.js');
 
 const root = path.join(__dirname, '..');
 const rules = JSON.parse(fs.readFileSync(path.join(root, 'rules.json'), 'utf8'));
