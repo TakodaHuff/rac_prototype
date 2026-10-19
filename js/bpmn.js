@@ -49,7 +49,7 @@
   // Every BPMN element of the given kinds, in document order, as
   // { kind, id, name, sourceRef, targetRef }. Works with any namespace prefix.
   function readElements(xml) {
-    const kinds = 'startEvent|endEvent|exclusiveGateway|inclusiveGateway|parallelGateway|eventBasedGateway|complexGateway|' +
+    const kinds = 'process|startEvent|endEvent|exclusiveGateway|inclusiveGateway|parallelGateway|eventBasedGateway|complexGateway|' +
       'sequenceFlow|task|userTask|serviceTask|scriptTask|businessRuleTask|manualTask|sendTask|receiveTask|' +
       'intermediateThrowEvent|intermediateCatchEvent|subProcess|callActivity';
     // Attribute values may contain ">", so quoted strings are matched as a whole.
@@ -148,7 +148,11 @@
     const nodes = {};
     const attributes = [];
     const usedAttrIds = new Set();
-    const report = { added: [], removed: [], changed: [], needsSupportiveText: [], newVariables: [], reviewLabels: [] };
+    const report = {
+      added: [], removed: [], changed: [], needsSupportiveText: [], newVariables: [], reviewLabels: [], newOutcomeLabels: [],
+      // What came from the previous rules rather than the BPMN (see importReport).
+      kept: { supportiveText: 0, outcomeLabels: 0, variables: 0, glossary: (prev.glossary || []).length, metaTexts: 0 },
+    };
 
     for (const el of elements) {
       if (el.kind === 'exclusiveGateway') {
@@ -199,9 +203,13 @@
         if (old && old.inputMode) node.inputMode = old.inputMode;
         Object.keys(node).forEach((k) => { if (node[k] === undefined || node[k] === '') delete node[k]; });
         if (!old || !old.supportiveText) report.needsSupportiveText.push(el.id);
+        else report.kept.supportiveText++;
+        if (old && prevAttrs[old.fact]) report.kept.variables++;
         nodes[el.id] = node;
       } else if (el.kind === 'endEvent') {
         const old = prevNodes[el.id] && prevNodes[el.id].type === 'outcome' ? prevNodes[el.id] : null;
+        if (old && old.label) report.kept.outcomeLabels++;
+        else report.newOutcomeLabels.push(el.id + ': "' + (shortLabel(el.name) || el.id) + '"');
         nodes[el.id] = {
           type: 'outcome',
           label: (old && old.label) || shortLabel(el.name) || el.id,
@@ -228,7 +236,10 @@
 
     const rules = {};
     rules.meta = Object.assign({}, prev.meta || {});
-    if (!rules.meta.title) rules.meta.title = (starts[0] && starts[0].name) || 'Imported rules';
+    report.kept.metaTexts = ['title', 'shortTitle', 'subtitle', 'intro', 'audience', 'disclaimer']
+      .filter((k) => rules.meta[k]).length;
+    const proc = elements.find((e) => e.kind === 'process' && e.name);
+    if (!rules.meta.title) rules.meta.title = (proc && proc.name) || (starts[0] && starts[0].name) || 'Imported rules';
     for (const key of Object.keys(prev)) {
       if (!['meta', 'attributes', 'start', 'nodes'].includes(key)) rules[key] = prev[key]; // glossary, constants, …
     }
@@ -242,8 +253,9 @@
   // Import report
   // ---------------------------------------------------------------------
 
-  // The result of an import as readable text: what was built, what changed
-  // compared with the previous rules, and what still needs work.
+  // The result of an import as readable text, in three parts: what came
+  // from the BPMN, what was kept from the previous rules (the texts the BPMN
+  // doesn't hold), and what still has to be added in the Build tab.
   // `validation` is validateRules() of the new rules.
   function importReport(rules, report, validation) {
     const count = (type) => Object.values(rules.nodes).filter((n) => n.type === type).length;
@@ -251,16 +263,40 @@
     const list = (title, items) => {
       if (items && items.length) lines.push('', title + ' (' + items.length + '):', ...items.map((i) => '  - ' + i));
     };
+
+    lines.push('', 'From the BPMN: the questions with their citations and Yes/No branches, the outcome descriptions and the start.');
+
+    const k = report.kept || {};
+    const kept = [];
+    if (k.supportiveText) kept.push('st\u00f6dtext for ' + k.supportiveText + ' questions');
+    if (k.outcomeLabels) kept.push(k.outcomeLabels + ' short outcome labels');
+    if (k.variables) kept.push(k.variables + ' variables (data dictionary)');
+    if (k.glossary) kept.push('the glossary (' + k.glossary + ' terms)');
+    if (k.metaTexts) kept.push('the title and intro texts');
+    lines.push('', kept.length
+      ? 'Kept from the current rules (texts the BPMN does not hold): ' + kept.join(', ') + '.'
+      : 'Nothing was kept from the current rules: this is a new rule set.');
+
     list('New nodes', report.added);
     list('Removed nodes', report.removed);
     list('Changed nodes', report.changed);
-    list('New variables (yes/no; check label and example in the data dictionary)', report.newVariables);
     list('Variable labels to review (their question changed in the BPMN)', report.reviewLabels);
-    list('Questions without supportive text (stödtext)', report.needsSupportiveText);
+
+    const openGlossary = (rules.glossary || []).filter((g) => g && g.term && !String(g.definition || '').trim()).map((g) => g.term);
+    const todo = (report.needsSupportiveText || []).length + (report.newOutcomeLabels || []).length +
+      (report.newVariables || []).length + openGlossary.length;
+    if (todo) {
+      lines.push('', 'Still to add in the Build tab:');
+      list('Questions without supportive text (st\u00f6dtext)', report.needsSupportiveText);
+      list('New outcomes: check the short label taken from the BPMN', report.newOutcomeLabels);
+      list('New variables: check label and example', report.newVariables);
+      list('Glossary terms without a definition', openGlossary);
+    }
     if (validation) {
       list('Validation errors', validation.errors);
-      list('Validation warnings', validation.warnings);
+      list('Validation warnings', validation.warnings.filter((w) => !/^Glossary term .*no definition yet/.test(w)));
     }
+    lines.push('', 'Upload BPMN updates the current rule set. For a different law, click New first, then Upload BPMN.');
     return lines.join('\n');
   }
 

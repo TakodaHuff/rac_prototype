@@ -23,9 +23,10 @@
   // folder must be served (GitHub Pages, `python3 -m http.server`).
   const RULES_URL = 'rules.json';
 
-  // Starting point for the toolbar's "New" button.
+  // Starting point for the toolbar's "New" button. No title, so a BPMN
+  // uploaded next names the rule set after its process.
   const EMPTY_RULES = {
-    meta: { title: 'Untitled rules', description: '' },
+    meta: { title: '', description: '' },
     attributes: [],
     start: '',
     nodes: {}
@@ -587,10 +588,26 @@
   // BUILD tab — attributes editor, node editor, validation
   // ---------------------------------------------------------------------
   function renderBuild() {
+    renderBpmnNote();
     renderAttributesEditor();
+    renderGlossaryEditor();
     renderNodesEditor(); // also renders the start-node selector
     renderMetaEditor();
     renderJsonPreview(); // also renders the validation
+  }
+
+  // Top of the Build tab: for rules imported from a BPMN, which parts come
+  // from the BPMN and which are only edited here.
+  function renderBpmnNote() {
+    const root = $('#bpmn-note');
+    root.innerHTML = '';
+    const file = rules.meta && rules.meta.bpmnFile;
+    if (!file) return;
+    root.appendChild(el('div', { class: 'notice notice-info' }, [
+      el('strong', { text: 'Imported from ' + file + '. ' }),
+      'Fields marked “from BPMN” (questions with operator and value, citations, Yes/No targets, outcome descriptions and the start node) come from the BPMN: change them there, or the next import overwrites them. ' +
+      'Everything else — supportive texts, outcome labels, variables, the glossary and the intro texts — is only edited here. Download JSON saves it.'
+    ]));
   }
 
   function renderMetaEditor() {
@@ -671,6 +688,39 @@
     }));
   }
 
+  // The glossary (rules.glossary): one row per term with its Swedish term,
+  // definition and legal source, written by the Law team.
+  function renderGlossaryEditor() {
+    const root = $('#glossary-editor');
+    root.innerHTML = '';
+    const entries = rules.glossary || [];
+    if (entries.length) {
+      const table = el('table', { class: 'editor-table glossary-editor' });
+      table.appendChild(el('thead', {}, [el('tr', {}, ['term', 'swedish', 'definition', 'legal source', ''].map((h) => el('th', { text: h })))]));
+      const tbody = el('tbody');
+      entries.forEach((g, i) => {
+        tbody.appendChild(el('tr', {}, [
+          td(textArea(g.term || '', (v) => { g.term = v; renderJsonPreview(); }, 2)),
+          td(textArea(g.swedish || '', (v) => { g.swedish = v; renderJsonPreview(); }, 2)),
+          td(textArea(g.definition || '', (v) => { g.definition = v; renderJsonPreview(); })),
+          td(textArea(g.source || '', (v) => { g.source = v; renderJsonPreview(); })),
+          td(el('button', { class: 'btn btn-danger-outline', text: '✕', 'aria-label': 'Delete term ' + (g.term || (i + 1)),
+            onclick: () => { entries.splice(i, 1); renderGlossaryEditor(); renderJsonPreview(); } })),
+        ]));
+      });
+      table.appendChild(tbody);
+      root.appendChild(table);
+    }
+    root.appendChild(el('button', {
+      class: 'btn btn-secondary', text: '+ Add term', onclick: () => {
+        rules.glossary = entries.concat([{ term: '', swedish: '', definition: '', source: '' }]);
+        renderGlossaryEditor(); renderJsonPreview();
+        const rows = $all('#glossary-editor tbody tr');
+        rows[rows.length - 1].querySelector('textarea').focus();
+      }
+    }));
+  }
+
   // Sets an optional field, or removes it when the value is empty.
   function setOptional(obj, key, value) {
     if (value === undefined || value === '') delete obj[key]; else obj[key] = value;
@@ -747,10 +797,10 @@
     //   row 4: Supportive text (full width)
     //   row 5: Legal citation (full width)
     const grid = el('div', { class: 'node-grid' });
-    grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide')));
+    grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide'), true));
     grid.appendChild(field('Variable', select(attrOptions, node.fact, (v) => { node.fact = v; refresh(); }, missingText(node.fact))));
-    grid.appendChild(field('Operator', select(RaC.OPERATORS, node.operator, (v) => { node.operator = v; refresh(); })));
-    grid.appendChild(field('Value', valueControl(node)));
+    grid.appendChild(field('Operator', select(RaC.OPERATORS, node.operator, (v) => { node.operator = v; refresh(); }), true));
+    grid.appendChild(field('Value', valueControl(node), true));
     const attr = (rules.attributes || []).find((a) => a.id === node.fact);
     const yesNoToggle = el('input', { type: 'checkbox' });
     yesNoToggle.checked = node.inputMode === 'yesno';
@@ -762,7 +812,7 @@
     ));
     branchFields(id, node, nodeIds).forEach((f) => grid.appendChild(f));
     grid.appendChild(field('Supportive text', input(node.supportiveText || '', (v) => { node.supportiveText = v; renderJsonPreview(); }, null, 'wide')));
-    grid.appendChild(field('Legal citation', input(node.citation || '', (v) => { node.citation = v; renderJsonPreview(); }, null, 'wide')));
+    grid.appendChild(field('Legal citation', input(node.citation || '', (v) => { node.citation = v; renderJsonPreview(); }, null, 'wide'), true));
     card.appendChild(grid);
     return card;
   }
@@ -781,7 +831,7 @@
 
     function branchField(labelText, key) {
       const wrap = el('label', { class: 'field branch-target' });
-      wrap.appendChild(el('span', { text: labelText }));
+      wrap.appendChild(labelWithBadge(labelText, true));
       const s = select(targets, node[key], (v) => { node[key] = v; renderJsonPreview(); }, missingText(node[key]));
       wrap.appendChild(s);
       const hint = el('div', { class: 'branch-hint', text: '↳ ' + targetPreview(node[key]) });
@@ -829,7 +879,7 @@
     ]));
     const grid = el('div', { class: 'node-grid' });
     grid.appendChild(field('Label', input(node.label || '', (v) => { node.label = v; renderJsonPreview(); }, null, 'wide')));
-    grid.appendChild(field('Description', input(node.description || '', (v) => { node.description = v; renderJsonPreview(); }, null, 'wide')));
+    grid.appendChild(field('Description', input(node.description || '', (v) => { node.description = v; renderJsonPreview(); }, null, 'wide'), true));
     card.appendChild(grid);
     return card;
   }
@@ -842,12 +892,32 @@
     if (v !== '' && !Number.isNaN(Number(v))) return Number(v);
     return v;
   }
-  function field(labelText, control) {
+  // `fromBpmn` marks a field the BPMN import fills (see bpmnBadge).
+  function field(labelText, control, fromBpmn) {
     // A "wide" control (class set by input(...,'wide')) needs the *field*
     // itself — the actual grid item — to span the full grid width, not just
     // the control inside it, otherwise the grid never sees it as full-width.
     const isWide = control.classList && control.classList.contains('wide');
-    return el('label', { class: 'field' + (isWide ? ' wide' : '') }, [el('span', { text: labelText }), control]);
+    return el('label', { class: 'field' + (isWide ? ' wide' : '') }, [labelWithBadge(labelText, fromBpmn), control]);
+  }
+
+  // When the rules were imported from a BPMN (meta.bpmnFile), the fields the
+  // import fills get a "from BPMN" mark: edits to them belong in the BPMN,
+  // because the next import overwrites them.
+  function bpmnBadge() {
+    const file = rules.meta && rules.meta.bpmnFile;
+    if (!file) return null;
+    return el('span', { class: 'bpmn-badge', title: 'Comes from ' + file + '. Change it there, or the next BPMN import overwrites it.', text: 'from BPMN' });
+  }
+  function labelWithBadge(text, fromBpmn) {
+    const badge = fromBpmn ? bpmnBadge() : null;
+    return el('span', {}, [text].concat(badge ? [badge] : []));
+  }
+  function textArea(value, onChange, rows) {
+    const t = el('textarea', { class: 'text-input', rows: String(rows || 3) });
+    t.value = value;
+    t.addEventListener('input', () => onChange(t.value));
+    return t;
   }
   function input(value, onChange, type, extraClass) {
     const i = el('input', { type: type || 'text', class: 'text-input' + (extraClass ? ' ' + extraClass : ''), value: value === undefined ? '' : value });
@@ -883,7 +953,7 @@
     // A new file has no start yet, so its first node becomes the start. A
     // start that points to a deleted node is kept and shown as missing.
     if (!rules.start && nodeIds.length) { rules.start = nodeIds[0]; renderJsonPreview(); }
-    root.appendChild(el('label', { text: 'Start node: ' }));
+    root.appendChild(el('label', {}, ['Start node: '].concat(bpmnBadge() ? [bpmnBadge()] : [])));
     root.appendChild(select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }, missingText(rules.start)));
   }
 

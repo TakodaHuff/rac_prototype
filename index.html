@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=5">
+<link rel="stylesheet" href="css/styles.css?v=7">
 </head>
 <body class="view-check">
 <!-- The body class picks the view: view-check (questionnaire only) or view-author (set by js/app.js from #author). -->
@@ -65,7 +65,7 @@
     Upload JSON
     <input type="file" id="upload-json" accept="application/json,.json">
   </label>
-  <label class="btn file-btn" title="Convert a BPMN decision tree (yes/no gateways) into rules">
+  <label class="btn file-btn" title="Update the rules from a new version of the same BPMN tree (yes/no gateways). For a different law, click New first.">
     Upload BPMN
     <input type="file" id="upload-bpmn" accept=".bpmn,.xml">
   </label>
@@ -90,6 +90,8 @@
   </div>
 
   <div class="tab-panel" id="tab-build">
+    <div id="bpmn-note"></div>
+
     <section class="builder-block">
       <h3><span class="step-num">1</span> Law / provision</h3>
       <div id="meta-editor"></div>
@@ -101,24 +103,30 @@
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">3</span> Flowchart</h3>
+      <h3><span class="step-num">3</span> Glossary</h3>
+      <p class="supportive">Legal terms explained under every question and result that uses them. A term without a definition stays hidden.</p>
+      <div id="glossary-editor"></div>
+    </section>
+
+    <section class="builder-block">
+      <h3><span class="step-num">4</span> Flowchart</h3>
       <p class="supportive">The whole tree. Click a box to jump to that node below.</p>
       <div id="flowchart"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">4</span> Decision tree nodes</h3>
+      <h3><span class="step-num">5</span> Decision tree nodes</h3>
       <div id="start-editor"></div>
       <div id="nodes-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">5</span> Validation</h3>
+      <h3><span class="step-num">6</span> Validation</h3>
       <div id="validation-results"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">6</span> Raw JSON</h3>
+      <h3><span class="step-num">7</span> Raw JSON</h3>
       <pre id="json-preview"></pre>
     </section>
   </div>
@@ -134,7 +142,7 @@
      Bump the ?v= number after editing a file so browsers don't use a cached copy. -->
 <script src="vendor/json-rules-engine.bundle.js"></script>
 <script src="js/logic.js?v=11"></script>
-<script src="js/bpmn.js?v=1"></script>
-<script src="js/app.js?v=14"></script>
+<script src="js/bpmn.js?v=2"></script>
+<script src="js/app.js?v=16"></script>
 </body>
 </html>

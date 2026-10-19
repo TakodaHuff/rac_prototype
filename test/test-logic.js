@@ -113,6 +113,15 @@ async function main() {
     });
   assert(sameTree && imported.rules.start === rules.start, 'importing ' + bpmnFile + ' gives the same nodes, branches and variables as rules.json');
 
+  // 10) An update keeps the texts the BPMN doesn't hold; an import after
+  //     "New" (empty rules) keeps nothing and names the rules after the process.
+  const keptCount = Object.values(rules.nodes).filter((n) => n.type === 'decision' && n.supportiveText).length;
+  assert(imported.report.kept.supportiveText === keptCount && imported.report.kept.glossary === (rules.glossary || []).length,
+    'an update keeps the st\u00f6dtext (' + keptCount + ') and the glossary (' + (rules.glossary || []).length + ' terms)');
+  const fresh = bpmnToRules(bpmn, { meta: { title: '', description: '' }, attributes: [], start: '', nodes: {} });
+  assert(fresh.report.kept.supportiveText === 0 && fresh.report.kept.variables === 0 && fresh.rules.meta.title,
+    'an import after "New" keeps nothing and is titled "' + fresh.rules.meta.title + '"');
+
   console.log('\nALL CHECKS PASSED');
 }
 
