@@ -60,10 +60,13 @@ The decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rul
 | Questions, operator and value | Supportive texts (stödtext) |
 | Citations | Short outcome labels |
 | Yes/No targets, start node | Variables (data dictionary) |
+| Defect warnings (a `No – defect…` arrow that leads on to another question) | |
 | Outcome descriptions | Glossary |
 | | Title, intro, audience, disclaimer |
 
 In the Build tab, fields filled by the import carry a **from BPMN** mark, and a note at the top says which BPMN the rules came from. The import report lists what came from the BPMN, what was kept, and what is still to add in the Build tab.
+
+**Defect warnings.** When an arrow's note contains "defect" and the arrow leads on to another question (e.g. Q2.2 `No – defect noted: auditor review missing`), the import stores the note as `"warnings": { "false": "Defect noted: auditor review missing." }` on that question. The result page then lists every defect noted on the way, and `decide()` returns them as `warnings`. Defect arrows that end the tree (e.g. Q2.1 → Liab_1) need no warning, because the outcome itself says so.
 
 Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`.
 
@@ -99,14 +102,14 @@ The import never changes the BPMN, and git keeps the previous `rules.json`, so a
 
 `scripts/runner.js` executes a rules file without the browser. Requires `npm install`.
 
-Decide one case — prints the outcome and the decision path, or `ERROR` with the field:
+Decide one case — prints the outcome, the decision path and any defect warnings, or `ERROR` with the field:
 
 ```
 npm run decide -- '{"q1_1_equity_below_half": false, "q1_2_enforcement_insufficient": false}'
 ```
 
 ```
-{"outcome":"No duty to prepare a control balance sheet","path":["Q1_1","Q1_2","End_1"]}
+{"outcome":"No duty to prepare a control balance sheet","path":["Q1_1","Q1_2","End_1"],"warnings":[]}
 ```
 
 Run a test file — one PASS/FAIL line per test (outcome **and** path are compared) and a summary, also written to `docs/test-run.log` as execution evidence:

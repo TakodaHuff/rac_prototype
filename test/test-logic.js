@@ -122,6 +122,21 @@ async function main() {
   assert(fresh.report.kept.supportiveText === 0 && fresh.report.kept.variables === 0 && fresh.rules.meta.title,
     'an import after "New" keeps nothing and is titled "' + fresh.rules.meta.title + '"');
 
+  // 11) Defect warnings: the importer keeps them in step with the BPMN, and
+  //     decide() reports the warning of every branch taken.
+  const sameWarnings = Object.entries(rules.nodes).every(([id, n]) =>
+    JSON.stringify(n.warnings || {}) === JSON.stringify(imported.rules.nodes[id].warnings || {}));
+  assert(sameWarnings, 'the defect warnings in rules.json match ' + bpmnFile);
+  const warned = Object.entries(rules.nodes).find(([, n]) => n.warnings && n.warnings.false);
+  if (warned) {
+    const [warnedId, warnedNode] = warned;
+    const row = suite.find((r) => r.edge_class !== 'negative' && r.expected_path.split('>').includes(warnedId) &&
+      r.inputs[warnedNode.fact] === false);
+    const result = await RaC.decide(rules, row.inputs);
+    assert(result.warnings.some((w) => w.nodeId === warnedId && w.warning === warnedNode.warnings.false),
+      'decide() reports the defect warning at ' + warnedId + ' ("' + warnedNode.warnings.false + '")');
+  }
+
   console.log('\nALL CHECKS PASSED');
 }
 

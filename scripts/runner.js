@@ -38,7 +38,7 @@ async function decideCommand(rulesFile, inputArg) {
   const result = await RaC.decide(rules, JSON.parse(text));
   const out = result.outcome === 'ERROR'
     ? { outcome: 'ERROR', errors: result.errors }
-    : { outcome: result.outcome, path: result.path };
+    : { outcome: result.outcome, path: result.path, warnings: result.warnings.map((w) => w.nodeId + ': ' + w.warning) };
   console.log(JSON.stringify(out));
   process.exit(result.outcome === 'ERROR' ? 1 : 0);
 }

@@ -348,7 +348,8 @@
       try {
         const branch = await RaC.evaluateCondition(node, Object.assign({}, playState.facts, { [node.fact]: value }));
         playState.facts[node.fact] = value;
-        playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, answer, question: node.question || node.fact, supportiveText: node.supportiveText, citation: node.citation });
+        playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, answer, question: node.question || node.fact, supportiveText: node.supportiveText, citation: node.citation,
+          warning: node.warnings && node.warnings[String(branch)] });
         delete playState.previousAnswers[playState.currentId];
         playState.currentId = branch ? node.true : node.false;
         renderPlay();
@@ -493,6 +494,20 @@
     // printed: a collapsed list would only print its summary line.
     const outcomeTerms = glossaryFor([node.label, description].join(' '), 'result');
     if (outcomeTerms) { outcomeTerms.classList.add('no-print'); card.appendChild(outcomeTerms); }
+
+    // Defects noted on the way (rules.json "warnings" on the branch taken):
+    // the tree went on, but a step was missed or done wrongly.
+    const defects = playState.history.filter((h) => userText(h.warning));
+    if (defects.length) {
+      card.appendChild(el('div', { class: 'notice notice-warn result-warnings' }, [
+        el('strong', { text: defects.length === 1 ? 'Defect noted on the way' : 'Defects noted on the way' }),
+        el('ul', {}, defects.map((h) => el('li', {}, [
+          el('span', { text: h.question + ' ' }),
+          el('strong', { text: h.answer + '. ' }),
+          document.createTextNode(userText(h.warning))
+        ])))
+      ]));
+    }
 
     card.appendChild(el('h4', { text: 'Your answers' }));
     const answers = el('ol', { class: 'answers-list' });
@@ -794,8 +809,9 @@
     //   row 1: Question (full width)
     //   row 2: Variable | Operator | Value | Ask as Yes/No
     //   row 3: If TRUE, go to | If FALSE, go to (half width each)
-    //   row 4: Supportive text (full width)
-    //   row 5: Legal citation (full width)
+    //   row 4: Defect warning if TRUE | if FALSE (half width each)
+    //   row 5: Supportive text (full width)
+    //   row 6: Legal citation (full width)
     const grid = el('div', { class: 'node-grid' });
     grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide'), true));
     grid.appendChild(field('Variable', select(attrOptions, node.fact, (v) => { node.fact = v; refresh(); }, missingText(node.fact))));
@@ -811,6 +827,7 @@
       yesNoToggle
     ));
     branchFields(id, node, nodeIds).forEach((f) => grid.appendChild(f));
+    warningFields(node).forEach((f) => grid.appendChild(f));
     grid.appendChild(field('Supportive text', input(node.supportiveText || '', (v) => { node.supportiveText = v; renderJsonPreview(); }, null, 'wide')));
     grid.appendChild(field('Legal citation', input(node.citation || '', (v) => { node.citation = v; renderJsonPreview(); }, null, 'wide'), true));
     card.appendChild(grid);
@@ -841,6 +858,22 @@
     }
 
     return [branchField('If TRUE, go to', 'true'), branchField('If FALSE, go to', 'false')];
+  }
+
+  // "Defect warning if TRUE / FALSE": shown on the result when that branch
+  // was taken. Empty fields are removed, so the JSON only has real warnings.
+  function warningFields(node) {
+    return ['true', 'false'].map((key) => {
+      const wrap = el('label', { class: 'field branch-target' });
+      wrap.appendChild(labelWithBadge('Defect warning if ' + key.toUpperCase() + ' (shown on the result)', true));
+      wrap.appendChild(input((node.warnings && node.warnings[key]) || '', (v) => {
+        node.warnings = Object.assign({}, node.warnings, { [key]: v });
+        if (!v.trim()) delete node.warnings[key];
+        if (!Object.keys(node.warnings).length) delete node.warnings;
+        renderJsonPreview();
+      }));
+      return wrap;
+    });
   }
 
   // Picks the right editor for a decision node's comparison value: a

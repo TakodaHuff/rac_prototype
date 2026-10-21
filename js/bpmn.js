@@ -8,7 +8,10 @@
  *   exclusive gateway   -> decision node, asked as a yes/no question
  *                          ("Q1.1 Question text? (citation)" -> question + citation)
  *   arrows "Yes…"/"No…" -> the node's true / false targets; any note after
- *                          the dash ("No – defect: …") goes into its supportive text
+ *                          the dash ("No – defect: …") goes into a new node's
+ *                          supportive text; a note with "defect" on an arrow
+ *                          that leads on to another question becomes a
+ *                          warning shown on the result ("warnings")
  *   end event           -> outcome node (its name becomes the description)
  *   start event         -> "start"
  *   other tasks/events with one outgoing arrow are passed through.
@@ -160,12 +163,18 @@
         const { question, citation } = splitQuestion(el.name);
         const branches = {};
         const notes = [];
+        const warnings = {};
         for (const f of outgoing(el.id)) {
           const b = readBranch(f.name);
           if (!b) { errors.push('Gateway "' + el.id + '": the arrow to "' + f.targetRef + '" must be named "Yes…" or "No…" (it is "' + f.name + '").'); continue; }
           if (branches[b.answer]) { errors.push('Gateway "' + el.id + '" has two "' + b.answer + '" arrows.'); continue; }
           branches[b.answer] = resolveTarget(f.targetRef);
           if (b.note) notes.push('If ' + b.answer + ': ' + withPeriod(b.note));
+          // A defect on an arrow that continues to the next question would
+          // otherwise be lost, so it is shown as a warning on the result.
+          if (/\bdefect\b/i.test(b.note) && byId[branches[b.answer]] && byId[branches[b.answer]].kind === 'exclusiveGateway') {
+            warnings[b.answer === 'yes' ? 'true' : 'false'] = withPeriod(b.note.charAt(0).toUpperCase() + b.note.slice(1));
+          }
         }
         if (!branches.yes || !branches.no) errors.push('Gateway "' + el.id + '" needs one "Yes" and one "No" arrow.');
 
@@ -199,6 +208,7 @@
           citation: citation || (old && old.citation) || undefined,
           true: branches.yes,
           false: branches.no,
+          warnings: Object.keys(warnings).length ? warnings : undefined,
         };
         if (old && old.inputMode) node.inputMode = old.inputMode;
         Object.keys(node).forEach((k) => { if (node[k] === undefined || node[k] === '') delete node[k]; });
@@ -227,6 +237,7 @@
       if (old.type !== n.type) diffs.push('type');
       if (n.type === 'decision') {
         if (old.true !== n.true || old.false !== n.false) diffs.push('branches (' + old.true + '/' + old.false + ' → ' + n.true + '/' + n.false + ')');
+        if (JSON.stringify(old.warnings || {}) !== JSON.stringify(n.warnings || {})) diffs.push('defect warnings');
         if (old.question !== n.question) diffs.push('question text');
         if ((old.citation || '') !== (n.citation || '')) diffs.push('citation');
       } else if ((old.description || '') !== n.description) diffs.push('description');
@@ -264,7 +275,7 @@
       if (items && items.length) lines.push('', title + ' (' + items.length + '):', ...items.map((i) => '  - ' + i));
     };
 
-    lines.push('', 'From the BPMN: the questions with their citations and Yes/No branches, the outcome descriptions and the start.');
+    lines.push('', 'From the BPMN: the questions with their citations and Yes/No branches, the defect warnings on the arrows, the outcome descriptions and the start.');
 
     const k = report.kept || {};
     const kept = [];
