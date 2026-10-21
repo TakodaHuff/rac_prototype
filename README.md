@@ -51,7 +51,22 @@ The decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rul
 | Start event | `start` |
 | Task or intermediate event with one outgoing arrow | passed through |
 
-Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, which labels to review, and the validation result. It also stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
+**Update, not replace.** The import is meant for new versions of the same tree. Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, which labels to review, and the validation result. It also stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
+
+**A different law:** in the browser, click **New** first and then **Upload BPMN** — nothing is kept, and the rule set is named after the BPMN process. On the command line, import into a new file with `--out <new file>.json`.
+
+| From the BPMN (change it there) | Only in rules.json (edit in the Build tab) |
+|---|---|
+| Questions, operator and value | Supportive texts (stödtext) |
+| Citations | Short outcome labels |
+| Yes/No targets, start node | Variables (data dictionary) |
+| Defect warnings (a `No – defect…` arrow that leads on to another question) | |
+| Outcome descriptions | Glossary |
+| | Title, intro, audience, disclaimer |
+
+In the Build tab, fields filled by the import carry a **from BPMN** mark, and a note at the top says which BPMN the rules came from. The import report lists what came from the BPMN, what was kept, and what is still to add in the Build tab.
+
+**Defect warnings.** When an arrow's note contains "defect" and the arrow leads on to another question (e.g. Q2.2 `No – defect noted: auditor review missing`), the import stores the note as `"warnings": { "false": "Defect noted: auditor review missing." }` on that question. The result page then lists every defect noted on the way, and `decide()` returns them as `warnings`. Defect arrows that end the tree (e.g. Q2.1 → Liab_1) need no warning, because the outcome itself says so.
 
 Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`.
 
@@ -87,14 +102,14 @@ The import never changes the BPMN, and git keeps the previous `rules.json`, so a
 
 `scripts/runner.js` executes a rules file without the browser. Requires `npm install`.
 
-Decide one case — prints the outcome and the decision path, or `ERROR` with the field:
+Decide one case — prints the outcome, the decision path and any defect warnings, or `ERROR` with the field:
 
 ```
 npm run decide -- '{"q1_1_equity_below_half": false, "q1_2_enforcement_insufficient": false}'
 ```
 
 ```
-{"outcome":"No duty to prepare a control balance sheet","path":["Q1_1","Q1_2","End_1"]}
+{"outcome":"No duty to prepare a control balance sheet","path":["Q1_1","Q1_2","End_1"],"warnings":[]}
 ```
 
 Run a test file — one PASS/FAIL line per test (outcome **and** path are compared) and a summary, also written to `docs/test-run.log` as execution evidence:
@@ -161,7 +176,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 ## Tabs
 
 - **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation (with the Swedish term and legal source) of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome and the glossary terms it uses, the decision path (node IDs), a list of your answers with their sources (**Change** jumps back to any of them; answers given before stay highlighted), and **Print / save as PDF**, which prints just the result.
-- **Build** — edit `rules.json`: law details, data dictionary, nodes, start node. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** and validation lists them until you choose another. Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
+- **Build** — edit `rules.json`: law details, data dictionary, glossary, nodes, start node. For rules imported from a BPMN, a note at the top and **from BPMN** marks show which fields the next import overwrites. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** and validation lists them until you choose another. Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
 - **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting.
 
 ## rules.json schema
@@ -204,7 +219,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 - Decision node: one condition, two targets (`true`, `false`).
 - `inputMode: "yesno"`: ask the condition as Yes/No. For number-threshold questions; automatic for boolean facts.
 - `meta.intro`, `meta.audience`, `meta.disclaimer`: shown on the intro screen; the disclaimer is also printed on the result. `meta.description` is for authors only and isn't shown.
-- `glossary`: the defined legal terms, written by the Law team. When a question or an outcome contains a `term` (whole words, case-insensitive), it is shown under it with its `swedish` term, `definition` and `source`. Terms whose definition is empty or `TODO` are hidden. `validateRules` reports a duplicate term as an error, and a missing definition or source, or a term that appears in no question or outcome, as a warning. `docs/glossary.csv` is generated from it for the report. Edit it in the file directly; the Build tab has no glossary editor.
+- `glossary`: the defined legal terms, written by the Law team. When a question or an outcome contains a `term` (whole words, case-insensitive), it is shown under it with its `swedish` term, `definition` and `source`. Terms whose definition is empty or `TODO` are hidden. `validateRules` reports a duplicate term as an error, and a missing definition or source, or a term that appears in no question or outcome, as a warning. `docs/glossary.csv` is generated from it for the report. Edit it in the Build tab (section 3, Glossary) or in the file.
 - `meta.shortTitle` and `meta.subtitle`: the page header (fall back to `meta.title` and `meta.legalSource`).
 - `meta.bpmnFile`: the BPMN this file was imported from (set by `npm run import:bpmn`, checked by `npm test`).
 - `meta.lawUrl`: the law text on riksdagen.se. A citation like `25 kap. 13 § ABL` or `Ch. 25 Sec. 13 Companies Act` links to `lawUrl#K25P13` (`12 b §` → `#K1P12b`, `25 kap. ABL` → `#K25`; ranges and lists use their first paragraph). Nodes without a citation show `meta.legalSource`.

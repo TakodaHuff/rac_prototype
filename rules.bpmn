@@ -17,7 +17,7 @@
     <bpmn:endEvent id="End_1" name="No duty to prepare a control balance sheet; no liquidation process under Ch. 25 Secs. 13–17 Companies Act">
       <bpmn:incoming>Flow_4</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q2_1" name="Q2.1 Has the board prepared a control balance sheet under Ch. 25 Sec. 14 Companies Act (ordinary balance sheet with the permitted adjustments of assets, liabilities, provisions and untaxed reserves)?">
+    <bpmn:exclusiveGateway id="Q2_1" name="Q2.1 Has the board prepared a control balance sheet under Ch. 25 Sec. 14 Companies Act (ordinary balance sheet with the permitted adjustments of assets, liabilities, provisions and untaxed reserves)?(Ch. 25 Sec. 14 Companies Act)">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
@@ -45,7 +45,7 @@
       <bpmn:outgoing>Flow_11</bpmn:outgoing>
       <bpmn:outgoing>Flow_12</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="Liab_2" name="First control meeting not convened – Personal liability is outside the scope of this assessment (Ch. 25 Secs. 18–20 a Companies Act)">
+    <bpmn:endEvent id="Liab_2" name="First control meeting not convened. Personal liability is outside the scope of this assessment (Ch. 25 Secs. 18–20 a Companies Act)">
       <bpmn:incoming>Flow_12</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:exclusiveGateway id="Q3_2" name="Q3.2 Was the first control meeting held with the control balance sheet and the auditor&#39;s statement presented? (Ch. 25 Sec. 15 para. 2 Companies Act)">
@@ -70,17 +70,17 @@
     <bpmn:endEvent id="End_R1" name="No second control meeting required (Ch. 25 Sec. 16 para. 1 Companies Act)">
       <bpmn:incoming>Flow_17</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q4_1a" name="Q4.1 Has the second control meeting been held? (Ch. 25 Sec. 16 para. 1 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_1a" name="Q4.1a Has the second control meeting been held? (Ch. 25 Sec. 16 para. 1 Companies Act)">
       <bpmn:incoming>Flow_18</bpmn:incoming>
       <bpmn:outgoing>Flow_19</bpmn:outgoing>
       <bpmn:outgoing>Flow_20</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_1b" name="Q4.1 Was it held within 8 months of the first meeting, or, after a company reorganisation during that period, within 2 months after the reorganisation ended? (Ch. 25 Sec. 16 para. 1 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_1b" name="Q4.1b Was it held within 8 months of the first meeting, or, after a company reorganisation during that period, within 2 months after the reorganisation ended? (Ch. 25 Sec. 16 para. 1 Companies Act)">
       <bpmn:incoming>Flow_19</bpmn:incoming>
       <bpmn:outgoing>Flow_21</bpmn:outgoing>
       <bpmn:outgoing>Flow_22</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_1c" name="Q4.1 Has the deadline (8 months, or 2 months after a company reorganisation ended) passed? (Ch. 25 Sec. 16 para. 1 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_1c" name="Q4.1c Has the deadline (8 months, or 2 months after a company reorganisation ended) passed? (Ch. 25 Sec. 16 para. 1 Companies Act)">
       <bpmn:incoming>Flow_20</bpmn:incoming>
       <bpmn:outgoing>Flow_23</bpmn:outgoing>
       <bpmn:outgoing>Flow_24</bpmn:outgoing>
@@ -93,12 +93,12 @@
       <bpmn:outgoing>Flow_25</bpmn:outgoing>
       <bpmn:outgoing>Flow_26</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_3" name="Has the new control balance sheet been reviewed by the company’s auditor, or does the company neither have nor have to have an auditor? (Ch. 25 Sec. 16 para. 2, Sec. 17 para. 1 pt. 2 and Ch. 1 Sec. 12 b Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_3" name="Q4.3 Has the new control balance sheet been reviewed by the company’s auditor, or does the company neither have nor have to have an auditor? (Ch. 25 Sec. 16 para. 2, Sec. 17 para. 1 pt. 2 and Ch. 1 Sec. 12 b Companies Act)">
       <bpmn:incoming>Flow_25</bpmn:incoming>
       <bpmn:outgoing>Flow_27</bpmn:outgoing>
       <bpmn:outgoing>Flow_28</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:exclusiveGateway id="Q4_4" name="Q4.4 Is equity under Ch. 25 Sec. 14 Companies Act at the time of the second control meeting at least equal to the registered share capital? (Ch. 25 Sec. 17 para. 1 pt. 2 Companies Act)">
+    <bpmn:exclusiveGateway id="Q4_4" name="Q4.4 Is equity under Ch. 25 Sec. 14 Companies Act, at the time of the second control meeting, at least equal to the registered share capital? (Ch. 25 Sec. 17 para. 1 pt. 2 Companies Act)">
       <bpmn:incoming>Flow_27</bpmn:incoming>
       <bpmn:outgoing>Flow_29</bpmn:outgoing>
       <bpmn:outgoing>Flow_30</bpmn:outgoing>
@@ -122,7 +122,7 @@
     <bpmn:endEvent id="End_5" name="The company goes into voluntary liquidation; no compulsory liquidation under Ch. 25 Sec. 17 Companies Act">
       <bpmn:incoming>Flow_33</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:exclusiveGateway id="Q5_1" name="Q5.1 Ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act. Has an application for liquidation been filed with the district court (by the board, which must apply within two weeks, or by a board member, the managing director, an auditor of the company or a shareholder)? (Ch. 25 Sec. 17 para. 2 Companies Act)">
+    <bpmn:exclusiveGateway id="Q5_1" name="Q5.1 Ground for liquidation under Ch. 25 Sec. 17 para. 1 Companies Act: Has an application for liquidation been filed with the district court (by the board, which must apply within two weeks, or by a board member, the managing director, an auditor of the company or a shareholder)? (Ch. 25 Sec. 17 para. 2 Companies Act)">
       <bpmn:incoming>Flow_22</bpmn:incoming>
       <bpmn:incoming>Flow_23</bpmn:incoming>
       <bpmn:incoming>Flow_34</bpmn:incoming>
@@ -222,7 +222,7 @@
       <bpmndi:BPMNShape id="Q2_1_di" bpmnElement="Q2_1" isMarkerVisible="true">
         <dc:Bounds x="960" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="936" y="130" width="97" height="159" />
+          <dc:Bounds x="898" y="177" width="174" height="106" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Liab_1_di" bpmnElement="Liab_1">
@@ -253,6 +253,12 @@
         <dc:Bounds x="1740" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="1714" y="187" width="88" height="106" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Liab_2_di" bpmnElement="Liab_2">
+        <dc:Bounds x="2022" y="482" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1998" y="520" width="86" height="146" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q3_2_di" bpmnElement="Q3_2" isMarkerVisible="true">
@@ -324,7 +330,7 @@
       <bpmndi:BPMNShape id="Q4_4_di" bpmnElement="Q4_4" isMarkerVisible="true">
         <dc:Bounds x="3820" y="300" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="3800" y="130" width="90" height="159" />
+          <dc:Bounds x="3801" y="130" width="89" height="159" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Q4_5_di" bpmnElement="Q4_5" isMarkerVisible="true">
@@ -384,19 +390,13 @@
       <bpmndi:BPMNShape id="End_8_di" bpmnElement="End_8">
         <dc:Bounds x="5380" y="450" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="5357" y="343" width="114" height="93" />
+          <dc:Bounds x="5365" y="323" width="98" height="119" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_9_di" bpmnElement="End_9">
         <dc:Bounds x="5380" y="600" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="5374" y="643" width="79" height="53" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Liab_2_di" bpmnElement="Liab_2">
-        <dc:Bounds x="2022" y="482" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1998" y="520" width="86" height="119" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_0_di" bpmnElement="Flow_0">

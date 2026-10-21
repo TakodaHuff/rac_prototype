@@ -110,6 +110,7 @@
     const nodes = rules.nodes || {};
     let currentId = rules.start;
     const path = [];
+    const warnings = [];
     const maxSteps = Object.keys(nodes).length + 2;
     let steps = 0;
 
@@ -120,7 +121,7 @@
       }
       path.push(currentId);
       if (node.type === 'outcome') {
-        return { outcomeId: currentId, outcomeNode: node, path };
+        return { outcomeId: currentId, outcomeNode: node, path, warnings };
       }
       if (node.type !== 'decision') {
         throw new Error('Unknown node type "' + node.type + '" at ' + currentId);
@@ -129,6 +130,9 @@
         throw new MissingInputError(node.fact, currentId);
       }
       const branch = await evaluateCondition(node, facts);
+      // A defect noted on the branch taken (e.g. auditor review missing).
+      const warning = node.warnings && node.warnings[String(branch)];
+      if (warning) warnings.push({ nodeId: currentId, warning });
       currentId = branch ? node.true : node.false;
     }
     throw new Error('Exceeded maximum steps — the rule graph likely has a cycle.');
@@ -217,7 +221,8 @@
   /**
    * The decision service: validate inputs against the data dictionary, then
    * run the tree. This is what the CLI runner and the tests call.
-   * Returns { outcome, outcomeId, path } or, for invalid or missing input,
+   * Returns { outcome, outcomeId, path, warnings: [{ nodeId, warning }] } or,
+   * for invalid or missing input,
    * { outcome: 'ERROR', errors: [{ field, error }], path: [] }.
    */
   async function decide(rules, inputs) {
@@ -225,7 +230,7 @@
     if (errors.length) return { outcome: 'ERROR', errors, path: [] };
     try {
       const result = await run(rules, facts);
-      return { outcome: outcomeLabel(rules, result.outcomeId), outcomeId: result.outcomeId, path: result.path };
+      return { outcome: outcomeLabel(rules, result.outcomeId), outcomeId: result.outcomeId, path: result.path, warnings: result.warnings };
     } catch (e) {
       if (!(e instanceof MissingInputError)) throw e;
       const attribute = (rules.attributes || []).find((a) => a.id === e.field);
@@ -294,6 +299,10 @@
         }
         if (!node.false || !rules.nodes[node.false]) {
           errors.push('Node "' + id + '": "false" target "' + node.false + '" does not exist.');
+        }
+        if (node.warnings !== undefined && (typeof node.warnings !== 'object' ||
+            Object.keys(node.warnings).some((k) => !['true', 'false'].includes(k) || typeof node.warnings[k] !== 'string'))) {
+          errors.push('Node "' + id + '": "warnings" must be { "true": text, "false": text } (either may be left out).');
         }
       } else if (node.type === 'outcome') {
         outcomeIds.add(id);

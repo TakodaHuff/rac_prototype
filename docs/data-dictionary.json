@@ -1,7 +1,7 @@
 [
   {
     "id": "q1_1_equity_below_half",
-    "label": "Reason to believe equity (Ch. 25 Sec. 14) is below half of the registered share capital?",
+    "label": "Does the board have reason to assume that equity (Ch. 25 Sec. 14) is below half of the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -11,7 +11,7 @@
   },
   {
     "id": "q1_2_enforcement_insufficient",
-    "label": "Has enforcement under Ch. 4 Enforcement Code shown the company lacks assets to pay the claim in full?",
+    "label": "Has enforcement under Ch. 4 Enforcement Code shown that the company lacks assets to pay the claim in full?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -31,7 +31,7 @@
   },
   {
     "id": "q2_2_cbs_reviewed_or_no_auditor",
-    "label": "Has the control balance sheet been reviewed by the auditor, or does the company have no auditor?",
+    "label": "Has the control balance sheet been reviewed by the auditor, or does the company neither have nor have to have an auditor?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -61,7 +61,7 @@
   },
   {
     "id": "q3_2_first_meeting_held_properly",
-    "label": "Was the first control meeting held with the control balance sheet and auditor's statement presented?",
+    "label": "Was the first control meeting held with the control balance sheet and the auditor’s statement presented?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -131,7 +131,7 @@
   },
   {
     "id": "q4_3_new_cbs_reviewed_or_no_auditor",
-    "label": "Has the new control balance sheet been reviewed by the auditor, or does the company have no auditor?",
+    "label": "Has the new control balance sheet been reviewed by the auditor, or does the company neither have nor have to have an auditor?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -141,7 +141,7 @@
   },
   {
     "id": "q4_4_full_equity_at_second_meeting",
-    "label": "Is equity under Ch. 25 Sec. 14 Companies Act at the time of the second control meeting at least equal to the registered share capital?",
+    "label": "Is equity under Ch. 25 Sec. 14 Companies Act, at the time of the second control meeting, at least equal to the registered share capital?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -181,7 +181,7 @@
   },
   {
     "id": "q5_2_full_equity_shown_in_proceedings",
-    "label": "During the court proceedings, has a full-equity control balance sheet been reviewed by the auditor and presented at a general meeting?",
+    "label": "During the court proceedings, has a control balance sheet showing equity at least equal to the registered share capital been reviewed by the auditor and presented at a general meeting?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",
@@ -191,7 +191,7 @@
   },
   {
     "id": "q5_3_ground_still_exists",
-    "label": "Does the ground for liquidation under Sec. 17 para. 1 still exist (no timely second meeting, or one without full capital cover, a reviewed control balance sheet, or a liquidation resolution)?",
+    "label": "Does a ground for liquidation under Ch. 25 Sec. 17 para. 1 still exist (no second control meeting in time, or a second-meeting balance sheet that was not reviewed or showed equity below the registered share capital, and no liquidation resolution)?",
     "type": "boolean",
     "allowed_values_range": "true / false",
     "unit_format": "",

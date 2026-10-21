@@ -394,6 +394,12 @@ section.builder-block h3 {
 .editor-table th, .editor-table td { border: 1px solid var(--border); padding: 6px; text-align: left; vertical-align: top; }
 .editor-table th { background: var(--surface-2); font-weight: 600; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .editor-table .text-input { width: 100%; min-width: 70px; }
+.editor-table textarea.text-input { resize: vertical; line-height: 1.4; }
+/* Glossary editor: room for the long definition, terms readable in full. */
+.glossary-editor td:nth-child(1), .glossary-editor td:nth-child(2) { width: 17%; }
+.glossary-editor td:nth-child(3) { width: 40%; }
+.glossary-editor td:nth-child(4) { width: 22%; }
+.glossary-editor td:nth-child(5) { width: 1%; }
 
 .node-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px; }
 .node-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--surface); }
@@ -485,6 +491,9 @@ section.builder-block h3 {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* "from BPMN" mark on fields the BPMN import fills. */
+.bpmn-badge { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--accent-soft-border); border-radius: var(--radius); background: var(--accent-soft); color: var(--accent); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
 
 #meta-editor label, #start-editor { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
 #start-editor { margin-bottom: 16px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
