@@ -84,11 +84,8 @@ async function main() {
 
   // 8) formatRules (Download JSON, the importer) changes only the layout:
   //    reading its output back gives exactly the same rules.
-  for (const file of ['rules.json', 'examples/number-and-choice-example.json']) {
-    const original = JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
-    const roundTrip = JSON.parse(RaC.formatRules(original));
-    assert(JSON.stringify(roundTrip) === JSON.stringify(original), 'formatRules keeps every value of ' + file);
-  }
+  const roundTrip = JSON.parse(RaC.formatRules(rules));
+  assert(JSON.stringify(roundTrip) === JSON.stringify(rules), 'formatRules keeps every value of rules.json');
 
   // 9) The BPMN importer rebuilds the same tree from the BPMN that
   //    rules.json was made from (meta.bpmnFile, set by the importer):

@@ -629,28 +629,22 @@
     const root = $('#meta-editor');
     root.innerHTML = '';
     rules.meta = rules.meta || {};
-    const title = el('input', { type: 'text', class: 'text-input wide', placeholder: 'Law / provision title', value: rules.meta.title || '' });
-    title.addEventListener('input', () => { rules.meta.title = title.value; renderJsonPreview(); });
-    const desc = el('input', { type: 'text', class: 'text-input wide', placeholder: 'One-line description', value: rules.meta.description || '' });
-    desc.addEventListener('input', () => { rules.meta.description = desc.value; renderJsonPreview(); });
-    title.addEventListener('input', applyHeader);
-    root.appendChild(el('label', { text: 'Title' }));
-    root.appendChild(title);
-    root.appendChild(el('label', { text: 'Short title (page header)' }));
-    root.appendChild(input(rules.meta.shortTitle || '', (v) => { rules.meta.shortTitle = v; applyHeader(); renderJsonPreview(); }, null, 'wide'));
-    root.appendChild(el('label', { text: 'Subtitle (line above the header)' }));
-    root.appendChild(input(rules.meta.subtitle || '', (v) => { rules.meta.subtitle = v; applyHeader(); renderJsonPreview(); }, null, 'wide'));
-    root.appendChild(el('label', { text: 'Description' }));
-    root.appendChild(desc);
-    root.appendChild(el('label', { text: 'Legal source' }));
-    root.appendChild(input(rules.meta.legalSource || '', (v) => { rules.meta.legalSource = v; renderJsonPreview(); }, null, 'wide'));
-    // Base URL of the law text; citations deep-link into it (see citationUrl).
-    [['intro', 'Intro: what this tool checks'], ['audience', 'Intro: who it is for'], ['disclaimer', 'Disclaimer (intro and result)']].forEach(([key, label]) => {
+    // [key, label, input type]. The title fields also update the page header.
+    // lawUrl is the law text's base URL; citations deep-link into it (see citationUrl).
+    [
+      ['title', 'Title'],
+      ['shortTitle', 'Short title (page header)'],
+      ['subtitle', 'Subtitle (line above the header)'],
+      ['description', 'Description'],
+      ['legalSource', 'Legal source'],
+      ['intro', 'Intro: what this tool checks'],
+      ['audience', 'Intro: who it is for'],
+      ['disclaimer', 'Disclaimer (intro and result)'],
+      ['lawUrl', 'Law text URL (riksdagen.se)', 'url'],
+    ].forEach(([key, label, type]) => {
       root.appendChild(el('label', { text: label }));
-      root.appendChild(input(rules.meta[key] || '', (v) => { rules.meta[key] = v; renderJsonPreview(); }, null, 'wide'));
+      root.appendChild(input(rules.meta[key] || '', (v) => { rules.meta[key] = v; applyHeader(); renderJsonPreview(); }, type, 'wide'));
     });
-    root.appendChild(el('label', { text: 'Law text URL (riksdagen.se)' }));
-    root.appendChild(input(rules.meta.lawUrl || '', (v) => { rules.meta.lawUrl = v; renderJsonPreview(); }, 'url', 'wide'));
   }
 
   function renderAttributesEditor() {
