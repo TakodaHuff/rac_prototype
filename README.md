@@ -46,23 +46,24 @@ The decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rul
 | BPMN | rules.json |
 |---|---|
 | Exclusive gateway `Q1_1` named `Q1.1 Question text? (Ch. 25 Sec. 13 Companies Act)` | Yes/no decision node `Q1_1` with `question` and `citation` |
-| Arrows named `Yes…` / `No…` | `true` / `false` targets; a note after the dash (`No – defect: not convened`) goes into the supportive text |
+| Arrows named `Yes…` / `No…` | `true` / `false` targets; a note after the dash (`No – defect: not convened`) goes into a new question's supportive text |
 | End event | Outcome node; its name becomes the `description` |
 | Start event | `start` |
 | Task or intermediate event with one outgoing arrow | passed through |
 
-**Update, not replace.** The import is meant for new versions of the same tree. Questions, citations, branches and outcome descriptions always come from the BPMN. What the BPMN doesn't hold is kept from the existing `rules.json` for every node ID that still exists: `meta`, `glossary`, short outcome labels, supportive texts and the variables in the data dictionary. A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import prints which nodes were added, removed or changed, which questions still need supportive text, which labels to review, and the validation result. It also stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
+**Update, not replace.** The import is meant for new versions of the same tree. For every node ID that still exists, it takes the left column below from the BPMN and keeps the right column from the current `rules.json`:
 
-**A different law:** in the browser, click **New** first and then **Upload BPMN** — nothing is kept, and the rule set is named after the BPMN process. On the command line, import into a new file with `--out <new file>.json`.
-
-| From the BPMN (change it there) | Only in rules.json (edit in the Build tab) |
+| From the BPMN (change it there) | Kept from rules.json (edit in the Build tab) |
 |---|---|
 | Questions, operator and value | Supportive texts (stödtext) |
 | Citations | Short outcome labels |
 | Yes/No targets, start node | Variables (data dictionary) |
-| Defect warnings (a `No – defect…` arrow that leads on to another question) | |
-| Outcome descriptions | Glossary |
-| | Title, intro, audience, disclaimer |
+| Defect warnings (a `No – defect…` arrow that leads on to another question) | Glossary |
+| Outcome descriptions | Title, intro, audience, disclaimer |
+
+A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
+
+**A different law:** in the browser, click **New** first and then **Upload BPMN** — nothing is kept, and the rule set is named after the BPMN process. On the command line, import into a new file with `--out <new file>.json`.
 
 In the Build tab, fields filled by the import carry a **from BPMN** mark, and a note at the top says which BPMN the rules came from. The import report lists what came from the BPMN, what was kept, and what is still to add in the Build tab.
 
@@ -118,10 +119,9 @@ Run a test file — one PASS/FAIL line per test (outcome **and** path are compar
 npm run test:suite
 ```
 
-Any other rules or test file works too:
+Any other test file works too:
 
 ```
-node scripts/runner.js decide examples/number-and-choice-example.json '{"equity_ratio": 0.3, "second_meeting": "Held in time"}'
 node scripts/runner.js test rules.json path/to/our-test-cases.csv --log docs/our-test-run.log
 ```
 
@@ -140,7 +140,6 @@ js/app.js           UI
 vendor/             prebuilt json-rules-engine bundle
 scripts/            build tooling (not loaded by the site)
 test/               npm test
-examples/           example rule files
 docs/               report deliverables (data dictionary, glossary, test suite)
 ```
 
