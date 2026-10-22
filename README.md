@@ -145,6 +145,7 @@ docs/               report deliverables (data dictionary, glossary, test suite)
 
 - `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Author view only change the rules in the browser tab until you download them.
 - `index.html` — markup and the page itself; styles are in `css/styles.css`.
+- `icons/` — the site icon: `favicon.svg` (modern browsers), `favicon.ico` (16/32/48 px, older browsers) and `apple-touch-icon.png` (180 px, phone home screens). Blue rounded square with a white § and a gold line; the § is an outline of the Gelasio Bold font (SIL Open Font License).
 - `js/logic.js` — condition evaluation, rules and input validation (data dictionary), `decide()`, path traversal, test-suite generation and running. No DOM; runs in Node.
 - `js/app.js` — UI, built on `js/logic.js`.
 - `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN named in `meta.bpmnFile` gives the same tree as `rules.json`.
