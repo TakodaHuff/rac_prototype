@@ -78,6 +78,15 @@ async function main() {
   results.filter((r) => !r.pass).slice(0, 10).forEach((r) => console.log('  FAIL ' + r.test_id + ': ' + r.reason));
   assert(results.every((r) => r.pass), 'docs/test-suite-full.csv: all ' + results.length + ' rows pass');
 
+  // 6b) runTestRow (behind the Test results tab) passes every generated row
+  //     and reports a wrong expectation as a failure with a reason.
+  const rowResults = [];
+  for (const row of suite) rowResults.push(await RaC.runTestRow(rules, row));
+  assert(rowResults.every((r) => r.pass), 'runTestRow: all ' + rowResults.length + ' generated rows pass');
+  const normalRow = suite.find((r) => r.edge_class === 'normal');
+  const wrong = await RaC.runTestRow(rules, Object.assign({}, normalRow, { expected_outcome: 'Not a real outcome' }));
+  assert(!wrong.pass && /expected "Not a real outcome"/.test(wrong.reason), 'runTestRow reports a wrong expected outcome as failed');
+
   // 7) The generated report files in docs/ match the current rules.json.
   const stale = staleFiles();
   assert(stale.length === 0, 'docs/ files are up to date' + (stale.length ? ' (stale: ' + stale.join(', ') + ' — run "npm run build:docs")' : ''));

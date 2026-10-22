@@ -9,7 +9,9 @@
  *  - Play tab: the questionnaire, intro and printable result
  *  - Build tab: editors for meta, variables and nodes, validation, JSON preview
  *  - Build tab flowchart (Mermaid) with pan and zoom
- *  - Test suite tab
+ *  - Test suite tab (the CSV as a table)
+ *  - Test results tab (each case run through the engine, as readable cards;
+ *    the Play result links to its own case here)
  *  - startup
  */
 (function () {
@@ -89,7 +91,7 @@
 
   // ---------------------------------------------------------------------
   // Views: "Check a rule" (default — just the questionnaire) and "Author"
-  // (adds the toolbar and the Build / Test suite tabs). The view lives in
+  // (adds the toolbar and the Build / Test suite / Test results tabs). The view lives in
   // the URL hash, so #author can be bookmarked or shared.
   // ---------------------------------------------------------------------
   function isAuthorView() { return document.body.classList.contains('view-author'); }
@@ -168,16 +170,19 @@
   // ---------------------------------------------------------------------
   function initTabs() {
     $all('.tab-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        $all('.tab-btn').forEach((b) => b.classList.remove('active'));
-        $all('.tab-panel').forEach((p) => p.classList.remove('active'));
-        btn.classList.add('active');
-        $('#tab-' + btn.dataset.tab).classList.add('active');
-        if (btn.dataset.tab === 'play') renderPlay();
-        if (btn.dataset.tab === 'build') renderBuild();
-        if (btn.dataset.tab === 'tests') renderTests();
-      });
+      btn.addEventListener('click', () => showTab(btn.dataset.tab));
     });
+  }
+
+  // Switches to a tab and renders it. `options` is passed on to the Test
+  // results tab (e.g. which case to highlight).
+  function showTab(tab, options) {
+    $all('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-' + tab));
+    if (tab === 'play') renderPlay();
+    if (tab === 'build') renderBuild();
+    if (tab === 'tests') renderTests();
+    if (tab === 'results') renderResults(options);
   }
 
   // ---------------------------------------------------------------------
@@ -272,6 +277,8 @@
     renderPlay();
     renderBuild();
     renderTests();
+    // Running every test takes a moment, so only when the tab is open.
+    if ($('#tab-results').classList.contains('active')) renderResults();
   }
 
   // ---------------------------------------------------------------------
@@ -540,6 +547,13 @@
       el('h4', { text: 'Decision path (node IDs)' }),
       el('div', { class: 'path-trace', text: outcomePath.join('  →  ') })
     ]));
+    // Every path through the tree is one case in the test suite; this opens
+    // the Test results tab at the case with the same path.
+    card.appendChild(el('button', {
+      class: 'btn btn-secondary result-test-link no-print',
+      text: 'See this result in the test suite →',
+      onclick: () => openResultsAtPath(outcomePath, Object.assign({}, playState.facts))
+    }));
 
     const disclaimer = userText(meta.disclaimer);
     if (disclaimer) card.appendChild(el('p', { class: 'result-disclaimer', text: disclaimer }));
@@ -1237,7 +1251,11 @@
       return;
     }
 
-    root.appendChild(el('div', { class: 'notice notice-info', text: 'Draft — review before treating as final test design.' }));
+    root.appendChild(el('div', { class: 'notice notice-info' }, [
+      'Draft — review before treating as final test design. This is the same table as Download CSV. For one readable card per case with its result, open ',
+      el('button', { class: 'btn-link inline-link', text: 'Test results', onclick: () => showTab('results') }),
+      '.'
+    ]));
 
     const suite = RaC.generateTestSuite(rules);
     const table = el('table', { class: 'editor-table tests-table' });
@@ -1255,7 +1273,320 @@
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    root.appendChild(table);
+    // The table scrolls inside its own box (header and test ID stay put),
+    // so the page itself never scrolls sideways.
+    root.appendChild(el('div', { class: 'table-scroll' }, [table]));
+  }
+
+  // ---------------------------------------------------------------------
+  // TEST RESULTS tab — every generated test case run through the engine,
+  // shown as one readable card per case: the questions on its path with
+  // their answers, the outcome, and whether the engine agreed.
+  // ---------------------------------------------------------------------
+  const TYPE_LABELS = { normal: 'Path', boundary: 'Boundary', negative: 'Invalid input' };
+  const resultsFilter = { query: '', outcome: '', type: '', status: '' };
+  let resultsRun = 0; // id of the newest run; a slower older run is dropped
+  let resultsReturnView = null; // 'check' / 'author' when opened from a Play result
+
+  // Opened from the Play result: show the Author view's Test results tab at
+  // the case with the same path and answers, remembering where to go back to.
+  function openResultsAtPath(path, facts) {
+    resultsReturnView = isAuthorView() ? 'author' : 'check';
+    if (!isAuthorView()) {
+      history.replaceState(null, '', '#author');
+      applyView();
+    }
+    showTab('results', { path, facts });
+  }
+
+  function backToResult() {
+    const view = resultsReturnView;
+    resultsReturnView = null;
+    if (view === 'check') {
+      history.replaceState(null, '', location.pathname + location.search);
+      applyView(); // the Check view always shows Play, with the result kept
+    } else {
+      showTab('play');
+    }
+    window.scrollTo(0, 0);
+  }
+
+  async function renderResults(options) {
+    options = options || {};
+    const root = $('#results-root');
+    const run = ++resultsRun;
+    root.innerHTML = '';
+    if (RaC.validateRules(rules).errors.length) {
+      root.appendChild(el('div', { class: 'notice notice-error', text: 'Fix validation errors in the Build tab before running the tests.' }));
+      return;
+    }
+    root.appendChild(el('p', { class: 'supportive', text: 'Running every test case through the rules engine…' }));
+
+    let results;
+    try {
+      results = [];
+      for (const row of RaC.generateTestSuite(rules)) {
+        results.push(await RaC.runTestRow(rules, row));
+        if (run !== resultsRun) return;
+      }
+    } catch (e) {
+      if (run !== resultsRun) return;
+      root.innerHTML = '';
+      root.appendChild(el('div', { class: 'notice notice-error', text: 'Could not run the tests: ' + e.message }));
+      return;
+    }
+    if (run !== resultsRun) return;
+    root.innerHTML = '';
+
+    // The case that matches the user's own answers. Several cases can share
+    // a path (a question whose Yes and No both lead on, with a defect noted
+    // on one), so the answers must match too; the plain "Path" case is
+    // preferred over a boundary case on the same route.
+    let yours = null;
+    if (options.path) {
+      const key = options.path.join('>');
+      const facts = options.facts || {};
+      const sameAnswers = (r) => Object.keys(facts).every((f) => r.inputs[f] === facts[f]);
+      const same = results.filter((r) => r.expected.path.join('>') === key);
+      yours = same.find((r) => r.edge_class === 'normal' && sameAnswers(r)) || same.find(sameAnswers) || null;
+      Object.assign(resultsFilter, { query: '', outcome: '', type: '', status: '' });
+    }
+    if (options.path) root.appendChild(yoursBanner(yours));
+
+    const failed = results.filter((r) => !r.pass).length;
+    root.appendChild(el('div', { class: 'results-summary' }, [
+      el('span', { class: 'results-total', text: results.length + ' test cases' }),
+      el('span', { class: 'status-pill pass', text: (results.length - failed) + ' passed' }),
+      el('span', { class: 'status-pill ' + (failed ? 'fail' : 'neutral'), text: failed + ' failed' })
+    ]));
+    root.appendChild(el('p', { class: 'supportive results-help', text:
+      'Each case is one set of answers run through the rules engine. A Path case answers the questions along one route through the tree; an Invalid input case gives one answer the data dictionary must reject. Open a case to see its questions, answers and result.' }));
+
+    const list = el('div', { class: 'results-list' });
+    const count = el('span', { class: 'results-count' });
+    root.appendChild(resultsFilterBar(results, () => renderResultsList(list, count, results, yours)));
+    root.appendChild(list);
+    renderResultsList(list, count, results, yours);
+
+    if (yours) {
+      const item = list.querySelector('[data-test-id="' + yours.test_id + '"]');
+      if (item) {
+        item.open = true;
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        item.classList.remove('flash');
+        void item.offsetWidth; // restart the animation
+        item.classList.add('flash');
+      }
+    }
+  }
+
+  function yoursBanner(yours) {
+    const back = el('button', { class: 'btn btn-sm', text: '← Back to your result', onclick: backToResult });
+    if (!yours) {
+      return el('div', { class: 'notice notice-warn results-yours' }, [
+        el('span', { text: 'No test case has the same path and answers as yours. The test suite may be out of date with the rules. ' }), back
+      ]);
+    }
+    return el('div', { class: 'notice ' + (yours.pass ? 'notice-ok' : 'notice-error') + ' results-yours' }, [
+      el('span', {}, [
+        'Your answers are test case ',
+        el('strong', { text: yours.test_id }),
+        yours.pass ? ', which passes: the engine gives the expected result.' : ', which fails: ' + yours.reason + '.'
+      ]),
+      back
+    ]);
+  }
+
+  function resultsFilterBar(results, onChange) {
+    const outcomes = [];
+    results.forEach((r) => { if (!outcomes.includes(r.expected.outcome)) outcomes.push(r.expected.outcome); });
+    const select = (key, label, options) => {
+      const s = el('select', { class: 'text-input', 'aria-label': label });
+      options.forEach(([value, text]) => {
+        const o = el('option', { value, text });
+        if (value === resultsFilter[key]) o.selected = true;
+        s.appendChild(o);
+      });
+      s.addEventListener('change', () => { resultsFilter[key] = s.value; onChange(); });
+      return s;
+    };
+    const search = el('input', { type: 'search', class: 'text-input', placeholder: 'Search: test ID, outcome or question text', 'aria-label': 'Search test cases' });
+    search.value = resultsFilter.query;
+    search.addEventListener('input', () => { resultsFilter.query = search.value; onChange(); });
+    const byOutcome = (o) => results.filter((r) => r.expected.outcome === o).length;
+    return el('div', { class: 'results-filters' }, [
+      search,
+      select('outcome', 'Filter by outcome', [['', 'All outcomes']].concat(outcomes.map((o) => [o, (o === 'ERROR' ? 'Error (invalid input)' : o) + ' (' + byOutcome(o) + ')']))),
+      select('type', 'Filter by type', [['', 'All types'], ['normal', 'Path'], ['boundary', 'Boundary'], ['negative', 'Invalid input']]
+        .filter(([v]) => !v || results.some((r) => r.edge_class === v))),
+      select('status', 'Filter by result', [['', 'Passed and failed'], ['pass', 'Passed only'], ['fail', 'Failed only']])
+    ]);
+  }
+
+  // Text a case can be found by: ID, outcome, description and the questions on its path.
+  function resultSearchText(r) {
+    const questions = r.expected.path.map((id) => (rules.nodes[id] && rules.nodes[id].question) || '');
+    return [r.test_id, r.expected.outcome, r.description, r.expected.path.join(' ')].concat(questions).join(' ').toLowerCase();
+  }
+
+  function renderResultsList(list, count, results, yours) {
+    const q = resultsFilter.query.trim().toLowerCase();
+    const shown = results.filter((r) =>
+      (!resultsFilter.outcome || r.expected.outcome === resultsFilter.outcome) &&
+      (!resultsFilter.type || r.edge_class === resultsFilter.type) &&
+      (!resultsFilter.status || (resultsFilter.status === 'pass') === r.pass) &&
+      (!q || resultSearchText(r).includes(q)));
+    list.innerHTML = '';
+    count.textContent = 'Showing ' + shown.length + ' of ' + results.length;
+    list.appendChild(count);
+    if (!shown.length) {
+      list.appendChild(el('p', { class: 'supportive', text: 'No test cases match these filters.' }));
+      return;
+    }
+    // Grouped by expected outcome, in the order the suite lists them.
+    const groups = [];
+    shown.forEach((r) => {
+      let g = groups.find((x) => x.outcome === r.expected.outcome);
+      if (!g) groups.push(g = { outcome: r.expected.outcome, cases: [] });
+      g.cases.push(r);
+    });
+    groups.forEach((g) => {
+      const failed = g.cases.filter((r) => !r.pass).length;
+      list.appendChild(el('h3', { class: 'results-group' }, [
+        el('span', { text: g.outcome === 'ERROR' ? 'Error: invalid input rejected' : g.outcome }),
+        el('span', { class: 'results-group-count', text: g.cases.length + (g.cases.length === 1 ? ' case' : ' cases') + (failed ? ' · ' + failed + ' failed' : ' · all passed') })
+      ]));
+      g.cases.forEach((r) => list.appendChild(testCaseItem(r, r === yours)));
+    });
+  }
+
+  function answerText(attribute, value) {
+    if (value === undefined || value === null || value === '') return 'No answer';
+    if (attribute && attribute.type === 'boolean' && typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
+  }
+
+  // The questions on a case's path, in order, with the case's answer to
+  // each. Defects come from the engine's own run of the case: the branch
+  // taken can't be read off the path, since Yes and No may lead to the
+  // same next question.
+  function caseSteps(r) {
+    const warnings = {};
+    (r.actual.warnings || []).forEach((w) => { warnings[w.nodeId] = userText(w.warning); });
+    return r.expected.path.slice(0, -1).map((id) => {
+      const node = rules.nodes[id] || {};
+      const attribute = (rules.attributes || []).find((a) => a.id === node.fact);
+      return {
+        id,
+        question: node.question || (attribute && attribute.label) || node.fact || id,
+        answer: answerText(attribute, r.inputs[node.fact]),
+        warning: warnings[id] || ''
+      };
+    });
+  }
+
+  // "[invalid] <label> wrong type" (from generateTestSuite) → "Wrong type: <label>".
+  function invalidTitle(description) {
+    const d = String(description || '').replace(/^\[invalid\]\s*/, '');
+    const m = /^(.*)\s(missing|wrong type|out of range|invalid enum value)$/.exec(d);
+    if (!m) return d;
+    const kind = m[2] === 'missing' ? 'No answer' : m[2].charAt(0).toUpperCase() + m[2].slice(1);
+    return kind + ': ' + m[1];
+  }
+
+  // One collapsible card. The body is built the first time it opens, so
+  // the list of several hundred cases stays quick.
+  function testCaseItem(r, isYours) {
+    const negative = r.edge_class === 'negative';
+    const steps = negative ? [] : caseSteps(r);
+    const defects = steps.filter((s) => s.warning).length;
+    const title = negative ? invalidTitle(r.description) : steps.length + (steps.length === 1 ? ' question' : ' questions') + ' → ' + r.expected.outcome;
+    // The answers on the path tell cases with the same route apart.
+    const route = steps.map((s) => s.id + ' ' + s.answer).concat([r.expected.path[r.expected.path.length - 1]]).join('  ›  ');
+    const summary = el('summary', {}, [
+      el('span', { class: 'tc-id', text: r.test_id }),
+      el('span', { class: 'status-pill ' + (r.pass ? 'pass' : 'fail'), text: r.pass ? 'Passed' : 'Failed' }),
+      el('span', { class: 'tc-type', text: TYPE_LABELS[r.edge_class] || r.edge_class }),
+      isYours ? el('span', { class: 'tc-yours', text: 'Your answers' }) : null,
+      defects ? el('span', { class: 'tc-defect', text: defects === 1 ? '1 defect noted' : defects + ' defects noted' }) : null,
+      el('span', { class: 'tc-title', text: title }),
+      negative ? null : el('span', { class: 'tc-path', text: route })
+    ].filter(Boolean));
+    const item = el('details', { class: 'test-case' + (isYours ? ' is-yours' : ''), 'data-test-id': r.test_id }, [summary]);
+    let built = false;
+    item.addEventListener('toggle', () => {
+      if (item.open && !built) { built = true; item.appendChild(testCaseBody(r)); }
+    });
+    return item;
+  }
+
+  function testCaseBody(r) {
+    const attributesById = {};
+    (rules.attributes || []).forEach((a) => { attributesById[a.id] = a; });
+    const body = el('div', { class: 'tc-body' });
+
+    if (r.edge_class === 'negative') {
+      // The one variable this case breaks: missing, or a value the data
+      // dictionary doesn't allow.
+      const bad = (rules.attributes || []).find((a) => r.description.indexOf(a.label) !== -1 && !(a.id in r.inputs)) ||
+        (rules.attributes || []).find((a) => a.id in r.inputs && RaC.validateValue(a, r.inputs[a.id]));
+      const errors = r.actual.errors || [];
+      const facts = el('dl', { class: 'tc-inputs tc-facts' });
+      const add = (term, value) => { facts.appendChild(el('dt', { text: term })); facts.appendChild(el('dd', {}, [value])); };
+      if (bad) {
+        add('Invalid answer to', bad.label);
+        add('Value given', bad.id in r.inputs ? JSON.stringify(r.inputs[bad.id]) + ' (' + (bad.type === 'boolean' ? 'must be yes or no' : 'not allowed') + ')' : 'none (left empty)');
+      }
+      add('Expected', 'Error: the input is rejected before the rules run');
+      add('Engine said', errors.length ? errors.map((e) => e.error).join(' ') : r.actual.outcome);
+      body.appendChild(facts);
+      body.appendChild(el('div', { class: 'tc-check ' + (r.pass ? 'pass' : 'fail') }, [r.pass
+        ? 'Passed: the engine rejected the input, as expected.'
+        : 'Failed: ' + r.reason + '.']));
+      body.appendChild(inputsDisclosure(r, attributesById));
+      return body;
+    }
+
+    // The questions in the order they are asked, with this case's answers.
+    const steps = el('ol', { class: 'tc-steps' });
+    caseSteps(r).forEach((s) => {
+      steps.appendChild(el('li', {}, [
+        el('span', { class: 'tc-step-id', text: s.id }),
+        el('span', { class: 'tc-step-q', text: s.question }),
+        el('span', { class: 'tc-answer', text: s.answer }),
+        s.warning ? el('span', { class: 'tc-warning', text: /^defect/i.test(s.warning) ? s.warning : 'Defect noted: ' + s.warning }) : null
+      ].filter(Boolean)));
+    });
+    body.appendChild(steps);
+
+    const path = r.expected.path;
+    const outcomeId = path[path.length - 1];
+    const outcome = rules.nodes[outcomeId] || {};
+    body.appendChild(el('div', { class: 'tc-outcome' }, [
+      el('span', { class: 'tc-outcome-label', text: 'Result' }),
+      el('strong', { text: outcome.label || outcomeId }),
+      userText(outcome.description) ? el('p', { text: userText(outcome.description) }) : null
+    ].filter(Boolean)));
+    body.appendChild(el('div', { class: 'tc-check ' + (r.pass ? 'pass' : 'fail') }, [r.pass
+      ? 'Passed: the engine reached this result by this path, as expected.'
+      : 'Failed: ' + r.reason + '.']));
+    body.appendChild(inputsDisclosure(r, attributesById));
+    return body;
+  }
+
+  // Every input of the case, as in the CSV row. Variables the path never
+  // asks about still have a value there, but it doesn't change the result.
+  function inputsDisclosure(r, attributesById) {
+    const asked = new Set(r.expected.path.map((id) => rules.nodes[id] && rules.nodes[id].fact).filter(Boolean));
+    const dl = el('dl', { class: 'tc-inputs' });
+    (rules.attributes || []).forEach((a) => {
+      dl.appendChild(el('dt', { text: a.id }));
+      dl.appendChild(el('dd', {}, [
+        el('span', { text: answerText(a, r.inputs[a.id]) }),
+        r.edge_class !== 'negative' && !asked.has(a.id) ? el('span', { class: 'tc-unused', text: ' (not asked on this path)' }) : null
+      ].filter(Boolean)));
+    });
+    return el('details', { class: 'tc-inputs-wrap' }, [el('summary', { text: 'All inputs in this test case (as in the CSV)' }), dl]);
   }
 
   // ---------------------------------------------------------------------

@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=7">
+<link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body class="view-check">
 <!-- The body class picks the view: view-check (questionnaire only) or view-author (set by js/app.js from #author). -->
@@ -80,6 +80,7 @@
   <button class="tab-btn active" data-tab="play">Play</button>
   <button class="tab-btn" data-tab="build">Build</button>
   <button class="tab-btn" data-tab="tests">Test suite</button>
+  <button class="tab-btn" data-tab="results">Test results</button>
 </div>
 
 <main>
@@ -135,13 +136,17 @@
     <div id="tests-root"></div>
   </div>
 
+  <div class="tab-panel" id="tab-results">
+    <div id="results-root"></div>
+  </div>
+
 </main>
 
 <!-- Order matters: the engine bundle sets window.JsonRulesEngine, logic.js sets window.RaC,
      bpmn.js sets window.RaCBpmn, app.js uses all three.
      Bump the ?v= number after editing a file so browsers don't use a cached copy. -->
 <script src="vendor/json-rules-engine.bundle.js"></script>
-<script src="js/logic.js?v=12"></script>
+<script src="js/logic.js?v=13"></script>
 <script src="js/bpmn.js?v=3"></script>
 <script src="js/app.js?v=18"></script>
 </body>

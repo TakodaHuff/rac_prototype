@@ -849,29 +849,48 @@
         const value = textToValue(attribute, get(col(attribute.id)));
         if (value !== undefined) inputs[attribute.id] = value;
       }
-      const actual = await decide(rules, inputs);
-      const expectedOutcome = get(col('expected_outcome')).trim();
-      const expectedPath = splitPath(get(pathCol));
-
-      // An outcome may be given by its label or its node id. ERROR rows
-      // don't have a path; for all others the path must match exactly.
-      const outcomeOk = expectedOutcome === actual.outcome || expectedOutcome === actual.outcomeId;
-      const pathOk = expectedOutcome === 'ERROR' || expectedPath.join('>') === actual.path.join('>');
-      let reason = '';
-      if (!outcomeOk) reason = 'outcome is "' + actual.outcome + '", expected "' + expectedOutcome + '"';
-      else if (!pathOk) reason = 'path is ' + actual.path.join('>') + ', expected ' + expectedPath.join('>');
-
-      results.push({
+      results.push(await runTestRow(rules, {
         test_id: get(col('test_id')),
         description: get(col('description')),
         edge_class: get(col('edge_class')),
-        pass: outcomeOk && pathOk,
-        reason,
-        expected: { outcome: expectedOutcome, path: expectedPath },
-        actual: { outcome: actual.outcome, path: actual.path, errors: actual.errors },
-      });
+        inputs,
+        expected_outcome: get(col('expected_outcome')),
+        expected_path: get(pathCol),
+      }));
     }
     return results;
+  }
+
+  /**
+   * Runs one test row through decide() and compares the outcome and the
+   * path. Used for CSV rows (above) and by the Test results tab for the
+   * rows of generateTestSuite(). expected_path may be "A>B>C" or an array.
+   * Returns { test_id, description, edge_class, inputs, pass, reason,
+   *   expected: { outcome, path }, actual: { outcome, outcomeId, path, errors, warnings } }
+   */
+  async function runTestRow(rules, row) {
+    const actual = await decide(rules, row.inputs || {});
+    const expectedOutcome = String(row.expected_outcome || '').trim();
+    const expectedPath = Array.isArray(row.expected_path) ? row.expected_path : splitPath(row.expected_path);
+
+    // An outcome may be given by its label or its node id. ERROR rows
+    // don't have a path; for all others the path must match exactly.
+    const outcomeOk = expectedOutcome === actual.outcome || expectedOutcome === actual.outcomeId;
+    const pathOk = expectedOutcome === 'ERROR' || expectedPath.join('>') === actual.path.join('>');
+    let reason = '';
+    if (!outcomeOk) reason = 'outcome is "' + actual.outcome + '", expected "' + expectedOutcome + '"';
+    else if (!pathOk) reason = 'path is ' + actual.path.join('>') + ', expected ' + expectedPath.join('>');
+
+    return {
+      test_id: row.test_id,
+      description: row.description,
+      edge_class: row.edge_class,
+      inputs: row.inputs || {},
+      pass: outcomeOk && pathOk,
+      reason,
+      expected: { outcome: expectedOutcome, path: expectedPath },
+      actual: { outcome: actual.outcome, outcomeId: actual.outcomeId, path: actual.path, errors: actual.errors, warnings: actual.warnings },
+    };
   }
 
   // ---------------------------------------------------------------------
@@ -993,6 +1012,7 @@
     generateTestSuite,
     testSuiteToCSV,
     runTestSuiteCSV,
+    runTestRow,
     textToValue,
     dataDictionary,
     dataDictionaryToCSV,
