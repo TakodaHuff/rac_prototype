@@ -23,9 +23,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=8">
+<link rel="stylesheet" href="css/styles.css?v=9">
 </head>
 <body class="view-check">
+<a class="skip-link" href="#main">Skip to content</a>
 <!-- The body class picks the view: view-check (questionnaire only) or view-author (set by js/app.js from #author). -->
 
 <!-- Header: title, theme toggle, Check / Author switch -->
@@ -61,7 +62,8 @@
   </div>
 </header>
 
-<!-- Author view only: file actions and engine status -->
+<!-- Author view only: file actions, engine status and the tab bar -->
+<section class="author-bar" aria-label="Author tools">
 <div class="toolbar">
   <button class="btn" id="new-rules">New</button>
   <label class="btn file-btn">
@@ -78,68 +80,69 @@
   <span id="engine-status" class="engine-badge" title="Condition evaluation engine in use"></span>
 </div>
 
-<!-- Author view only: tab bar. The Check view always shows Play. -->
-<div class="tabs">
-  <button class="tab-btn active" data-tab="play">Play</button>
-  <button class="tab-btn" data-tab="build">Build</button>
-  <button class="tab-btn" data-tab="tests">Test suite</button>
-  <button class="tab-btn" data-tab="results">Test results</button>
+<!-- The Check view always shows Play. -->
+<div class="tabs" role="tablist" aria-label="Author sections">
+  <button class="tab-btn active" data-tab="play" role="tab" id="tabbtn-play" aria-controls="tab-play" aria-selected="true">Play</button>
+  <button class="tab-btn" data-tab="build" role="tab" id="tabbtn-build" aria-controls="tab-build" aria-selected="false" tabindex="-1">Build</button>
+  <button class="tab-btn" data-tab="tests" role="tab" id="tabbtn-tests" aria-controls="tab-tests" aria-selected="false" tabindex="-1">Test suite</button>
+  <button class="tab-btn" data-tab="results" role="tab" id="tabbtn-results" aria-controls="tab-results" aria-selected="false" tabindex="-1">Test results</button>
 </div>
+</section>
 
-<main>
+<main id="main" tabindex="-1">
 
   <!-- Each panel is an empty container; js/app.js renders the content. -->
-  <div class="tab-panel active" id="tab-play">
+  <div class="tab-panel active" id="tab-play" role="tabpanel" aria-labelledby="tabbtn-play">
     <div id="play-root"></div>
   </div>
 
-  <div class="tab-panel" id="tab-build">
+  <div class="tab-panel" id="tab-build" role="tabpanel" aria-labelledby="tabbtn-build">
     <div id="bpmn-note"></div>
 
     <section class="builder-block">
-      <h3><span class="step-num">1</span> Law / provision</h3>
+      <h2><span class="step-num">1</span> Law / provision</h2>
       <div id="meta-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">2</span> Data dictionary (variables)</h3>
+      <h2><span class="step-num">2</span> Data dictionary (variables)</h2>
       <div id="attributes-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">3</span> Glossary</h3>
+      <h2><span class="step-num">3</span> Glossary</h2>
       <p class="supportive">Legal terms explained under every question and result that uses them. A term without a definition stays hidden.</p>
       <div id="glossary-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">4</span> Flowchart</h3>
+      <h2><span class="step-num">4</span> Flowchart</h2>
       <p class="supportive">The whole tree. Click a box to jump to that node below.</p>
       <div id="flowchart"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">5</span> Decision tree nodes</h3>
+      <h2><span class="step-num">5</span> Decision tree nodes</h2>
       <div id="start-editor"></div>
       <div id="nodes-editor"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">6</span> Validation</h3>
+      <h2><span class="step-num">6</span> Validation</h2>
       <div id="validation-results"></div>
     </section>
 
     <section class="builder-block">
-      <h3><span class="step-num">7</span> Raw JSON</h3>
-      <pre id="json-preview"></pre>
+      <h2><span class="step-num">7</span> Raw JSON</h2>
+      <pre id="json-preview" tabindex="0" role="region" aria-label="Raw JSON of the rules"></pre>
     </section>
   </div>
 
-  <div class="tab-panel" id="tab-tests">
+  <div class="tab-panel" id="tab-tests" role="tabpanel" aria-labelledby="tabbtn-tests">
     <div id="tests-root"></div>
   </div>
 
-  <div class="tab-panel" id="tab-results">
+  <div class="tab-panel" id="tab-results" role="tabpanel" aria-labelledby="tabbtn-results">
     <div id="results-root"></div>
   </div>
 
@@ -151,6 +154,6 @@
 <script src="vendor/json-rules-engine.bundle.js"></script>
 <script src="js/logic.js?v=13"></script>
 <script src="js/bpmn.js?v=3"></script>
-<script src="js/app.js?v=19"></script>
+<script src="js/app.js?v=20"></script>
 </body>
 </html>
