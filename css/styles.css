@@ -41,6 +41,10 @@
   --info-text: #003a6b;
   --code-bg: #08192b;
   --code-text: #cfe6f7;
+  --header-bg: #0b1e33;
+  --header-ink: #ffffff;
+  --control-border: #768699;
+  --faint: #5b6472;
   --font-display: "Space Grotesk", "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -78,6 +82,10 @@
     --info-text: #bfe0fa;
     --code-bg: #071018;
     --code-text: #cfe6f7;
+    --header-bg: #fecb00;
+    --header-ink: #0a1626;
+    --control-border: #6a8bad;
+    --faint: #8ea3ba;
   }
 }
 :root[data-theme="dark"] {
@@ -108,6 +116,10 @@
   --info-text: #bfe0fa;
   --code-bg: #071018;
   --code-text: #cfe6f7;
+  --header-bg: #fecb00;
+  --header-ink: #0a1626;
+  --control-border: #6a8bad;
+  --faint: #8ea3ba;
 }
 
 /* ===== Base ===== */
@@ -121,29 +133,44 @@ body {
   line-height: 1.5;
 }
 ::selection { background: var(--gold); color: var(--gold-ink); }
+/* Links: a thin underline offset from the text keeps them recognisable
+   without making lists of links look heavy; it thickens on hover. */
+a, .btn-link { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover, .btn-link:hover { text-decoration-thickness: 2px; }
+a:focus-visible, summary:focus-visible, .tab-btn:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Read by screen readers, not shown. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Keyboard users can jump past the header; the link shows when focused. */
+.skip-link { position: absolute; left: 12px; top: -60px; z-index: 10; padding: 8px 14px; background: var(--surface); color: var(--accent); border: 2px solid var(--accent); border-radius: var(--radius); font-weight: 600; }
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }
+.question:focus, .outcome-badge:focus, .card-heading:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
 
 /* ===== Header: title, view switch, theme toggle ===== */
 
 header {
-  background: var(--accent);
+  background: var(--header-bg);
   padding-block: 26px 22px;
 }
 .header-inner { max-width: 1000px; margin: 0 auto; padding-inline: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
 
 /* View switch: "Check a rule" (default) vs "Author". */
-.view-switch { display: inline-flex; border: 2px solid var(--accent-ink); border-radius: var(--radius); overflow: hidden; }
+.view-switch { display: inline-flex; border: 2px solid var(--header-ink); border-radius: var(--radius); overflow: hidden; }
 .view-btn {
   border: none;
   background: transparent;
-  color: var(--accent-ink);
+  color: var(--header-ink);
   padding: 7px 14px;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
 }
-.view-btn + .view-btn { border-left: 2px solid var(--accent-ink); }
-.view-btn[aria-pressed="true"] { background: var(--accent-ink); color: var(--accent); }
+.view-btn + .view-btn { border-left: 2px solid var(--header-ink); }
+.view-btn[aria-pressed="true"] { background: var(--header-ink); color: var(--header-bg); }
 .view-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
 
 /* Theme toggle: compact icon button, same border/radius language as the
@@ -156,10 +183,10 @@ header {
   width: 38px;
   height: 38px;
   flex: 0 0 auto;
-  border: 2px solid var(--accent-ink);
+  border: 2px solid var(--header-ink);
   border-radius: var(--radius);
   background: transparent;
-  color: var(--accent-ink);
+  color: var(--header-ink);
   cursor: pointer;
 }
 .theme-toggle:hover { background: color-mix(in srgb, currentColor 15%, transparent); }
@@ -168,13 +195,12 @@ header {
    browser, so force it explicitly for the two icon states. */
 .theme-toggle svg[hidden] { display: none; }
 /* The Check view hides everything meant for authors. */
-body.view-check .toolbar,
-body.view-check .tabs { display: none; }
+body.view-check .author-bar { display: none; }
 .header-eyebrow {
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.04em;
-  color: var(--accent-ink);
+  color: var(--header-ink);
   opacity: 0.85;
   margin-bottom: 4px;
 }
@@ -185,7 +211,7 @@ header h1 {
   font-size: clamp(24px, 4vw, 38px);
   letter-spacing: -0.02em;
   text-transform: uppercase;
-  color: var(--accent-ink);
+  color: var(--header-ink);
   text-wrap: balance;
 }
 
@@ -262,9 +288,10 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .answer-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 6px; }
 .field-error { color: var(--danger); font-size: 13px; min-height: 18px; }
 .legal-source { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.legal-source a { color: var(--accent); font-weight: 600; }
+.legal-source a { color: var(--accent); font-weight: 500; }
 .answers-list { padding-left: 20px; margin: 0 0 8px; font-size: 14px; }
-.answers-list li { margin-bottom: 10px; }
+.answers-list li { margin-bottom: 14px; }
+.answers-list .answers-rule { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .answers-list li::marker { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
 .answers-q { display: block; }
 .answers-a { display: inline-block; margin-top: 2px; color: var(--accent); }
@@ -289,7 +316,7 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 /* ===== Buttons ===== */
 
 .btn {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   background: var(--surface);
   color: var(--text);
   padding: 10px 16px;
@@ -304,9 +331,9 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
 .btn-choice { min-width: 92px; font-weight: 600; }
-.btn-secondary { background: var(--accent-soft); border-color: var(--accent-soft-border); color: var(--accent); font-weight: 600; }
+.btn-secondary { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .btn-link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 6px 0; }
-.btn-danger-outline { color: var(--danger); border-color: var(--danger-soft-border); background: var(--danger-soft); }
+.btn-danger-outline { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 
 /* ===== Play tab: result ===== */
@@ -331,17 +358,15 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
-  overflow-x: auto;
-  white-space: nowrap;
+  overflow-wrap: anywhere; /* wraps instead of scrolling sideways */
 }
-.supportive-list { padding-left: 18px; font-size: 14px; color: var(--muted); }
-.card h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; font-family: var(--font-mono); }
+.card .card-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; font-family: var(--font-mono); }
 
 /* ===== Form inputs ===== */
 
 .text-input {
   padding: 9px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   font-size: 14px;
   font-family: var(--font-body);
@@ -365,7 +390,7 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 /* ===== Build tab: numbered sections, editor table, node cards ===== */
 
 section.builder-block { margin-bottom: 30px; }
-section.builder-block h3 {
+section.builder-block h2 {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -510,10 +535,30 @@ section.builder-block h3 {
    test ID column pinned, instead of making the whole page scroll sideways. */
 .table-scroll { overflow: auto; max-height: 75vh; border: 1px solid var(--border); border-radius: var(--radius); }
 .table-scroll .tests-table { margin: 0; width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
-.table-scroll .tests-table th { position: sticky; top: 0; z-index: 2; }
-.table-scroll .tests-table td:first-child, .table-scroll .tests-table th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface-2); }
-.table-scroll .tests-table th:first-child { z-index: 3; }
-.table-scroll .tests-table td:nth-child(2) { min-width: 260px; }
+.table-scroll .tests-table thead th { position: sticky; top: 0; z-index: 2; }
+.table-scroll .tests-table tr > :first-child { position: sticky; left: 0; z-index: 1; background: var(--surface-2); }
+.table-scroll .tests-table thead th:first-child { z-index: 3; }
+/* Compact cells: headings wrap at underscores (see renderTests), short
+   true / false values are centred, and long text wraps in a fixed width. */
+.tests-table th, .tests-table td { padding: 5px 8px; }
+.tests-table thead th { text-transform: none; letter-spacing: 0; vertical-align: bottom; font-size: 10.5px; line-height: 1.2; padding-block: 6px; }
+/* 13 characters wide: every variable name fits on four lines or fewer,
+   which keeps the heading row (and the gap above short headings) small. */
+.tests-table thead th.col-var { width: 13ch; min-width: 9ch; }
+.tests-table tbody th { font-weight: 700; color: var(--text); font-size: 12px; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.tests-table td.col-var { text-align: center; }
+/* Values the row's path uses are plain text; fillers the path never reaches
+   are faded and in brackets (the brackets carry the meaning, not just the
+   colour); the invalid value in an invalid-input row is bold. */
+.tests-table td.v-unused { color: var(--faint); font-style: italic; }
+.tests-table td.v-invalid { color: var(--danger); font-weight: 700; }
+.tests-legend { margin: -4px 0 10px; font-size: 13px; }
+.tests-table td.col-wrap { min-width: 220px; max-width: 420px; }
+.tests-table tr.edge-normal:nth-child(even) > * { background: var(--surface-2); }
+.tests-table tr.edge-normal:nth-child(even) > th { background: var(--border); }
+/* :nth-child(n) matches every row; it is only there so the hover colour
+   outranks the shading of the even rows above. */
+.tests-table tbody tr:nth-child(n):hover > * { background: var(--accent-soft); }
 .inline-link { padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
 
 /* ===== Test results tab ===== */

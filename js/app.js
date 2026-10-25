@@ -103,8 +103,7 @@
     $all('.view-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === (author ? 'author' : 'check'))));
     if (!author) {
       // Only the questionnaire exists in the Check view.
-      $all('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'play'));
-      $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-play'));
+      setTabState('play');
     }
     if (rules) renderPlay(); // Play's error notice depends on the view
   }
@@ -169,16 +168,37 @@
   // Tabs
   // ---------------------------------------------------------------------
   function initTabs() {
-    $all('.tab-btn').forEach((btn) => {
+    const tabs = $all('.tab-btn');
+    tabs.forEach((btn, i) => {
       btn.addEventListener('click', () => showTab(btn.dataset.tab));
+      // Tab-bar keyboard pattern: arrows (and Home / End) move between tabs.
+      btn.addEventListener('keydown', (e) => {
+        const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (next === undefined) return;
+        e.preventDefault();
+        const target = tabs[(next + tabs.length) % tabs.length];
+        target.focus();
+        showTab(target.dataset.tab);
+      });
     });
+  }
+
+  // Marks `tab` as the active tab and panel, for sight (class) and for
+  // screen readers (aria-selected); only the active tab is in the Tab order.
+  function setTabState(tab) {
+    $all('.tab-btn').forEach((b) => {
+      const on = b.dataset.tab === tab;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-' + tab));
   }
 
   // Switches to a tab and renders it. `options` is passed on to the Test
   // results tab (e.g. which case to highlight).
   function showTab(tab, options) {
-    $all('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-    $all('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-' + tab));
+    setTabState(tab);
     if (tab === 'play') renderPlay();
     if (tab === 'build') renderBuild();
     if (tab === 'tests') renderTests();
@@ -284,7 +304,20 @@
   // ---------------------------------------------------------------------
   // PLAY tab — the click-through questionnaire
   // ---------------------------------------------------------------------
+  let playFocus = false; // set before a re-render caused by the user
+
   function renderPlay() {
+    buildPlay();
+    if (!playFocus) return;
+    playFocus = false;
+    const target = $('#play-root .question, #play-root .outcome-badge');
+    if (target) {
+      target.setAttribute('tabindex', '-1');
+      target.focus();
+    }
+  }
+
+  function buildPlay() {
     const root = $('#play-root');
     root.innerHTML = '';
 
@@ -359,6 +392,7 @@
           warning: node.warnings && node.warnings[String(branch)] });
         delete playState.previousAnswers[playState.currentId];
         playState.currentId = branch ? node.true : node.false;
+        playFocus = true;
         renderPlay();
       } catch (e) {
         errorLine.textContent = e.message;
@@ -381,7 +415,7 @@
         inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: String(v), onclick: () => commit(v, String(v)) }));
       });
     } else if (attribute.type === 'number') {
-      const input = el('input', { type: 'number', class: 'text-input', placeholder: attribute.label });
+      const input = el('input', { type: 'number', class: 'text-input', placeholder: attribute.label, 'aria-label': node.question || attribute.label });
       if (typeof attribute.min === 'number') input.min = attribute.min;
       if (typeof attribute.max === 'number') input.max = attribute.max;
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
@@ -391,7 +425,7 @@
       inputWrap.appendChild(btn);
       input.focus();
     } else {
-      const input = el('input', { type: 'text', class: 'text-input', placeholder: attribute.label });
+      const input = el('input', { type: 'text', class: 'text-input', placeholder: attribute.label, 'aria-label': node.question || attribute.label });
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
       btn.addEventListener('click', () => commit(input.value, input.value));
       inputWrap.appendChild(input);
@@ -437,6 +471,7 @@
     playState.facts = {};
     playState.history.forEach((h) => { playState.facts[h.factId] = h.value; });
     playState.currentId = target.nodeId;
+    playFocus = true;
     renderPlay();
   }
 
@@ -449,11 +484,11 @@
     const audience = userText(meta.audience);
     const disclaimer = userText(meta.disclaimer);
     if (intro) {
-      card.appendChild(el('h4', { text: 'What this tool checks' }));
+      card.appendChild(el('h3', { class: 'card-heading', text: 'What this tool checks' }));
       card.appendChild(el('p', { class: 'intro-text', text: intro }));
     }
     if (audience) {
-      card.appendChild(el('h4', { text: 'Who it is for' }));
+      card.appendChild(el('h3', { class: 'card-heading', text: 'Who it is for' }));
       card.appendChild(el('p', { class: 'intro-text', text: audience }));
     }
     card.appendChild(el('p', { class: 'intro-text', text: 'You will answer up to ' + remainingQuestions(rules.start) + ' questions. Each one shows the part of the law it is based on.' }));
@@ -461,7 +496,7 @@
     if (source) card.appendChild(source);
     if (disclaimer) card.appendChild(el('div', { class: 'notice notice-info intro-disclaimer', text: disclaimer }));
     card.appendChild(el('div', { class: 'result-actions' }, [
-      el('button', { class: 'btn btn-primary', text: 'Start', onclick: () => { playState.started = true; renderPlay(); } })
+      el('button', { class: 'btn btn-primary', text: 'Start', onclick: () => { playState.started = true; playFocus = true; renderPlay(); } })
     ]));
   }
 
@@ -516,7 +551,10 @@
       ]));
     }
 
-    card.appendChild(el('h4', { text: 'Your answers' }));
+    // One entry per answered question: the answer, the rule applied there
+    // (its supportive text) and its legal source, kept together so each
+    // citation appears once.
+    card.appendChild(el('h3', { class: 'card-heading', text: 'Your answers and the rules applied' }));
     const answers = el('ol', { class: 'answers-list' });
     playState.history.forEach((h, i) => {
       const li = el('li', {}, [
@@ -524,27 +562,18 @@
         el('strong', { class: 'answers-a', text: h.answer }),
         el('button', { class: 'btn btn-link answers-change no-print', text: 'Change', 'aria-label': 'Change answer to question ' + (i + 1), onclick: () => goBackTo(i) })
       ]);
+      const rule = userText(h.supportiveText);
+      if (rule) li.appendChild(el('p', { class: 'answers-rule', text: rule }));
       const source = legalSourceLine(h.citation);
       if (source) li.appendChild(source);
       answers.appendChild(li);
     });
     card.appendChild(answers);
 
-    const trail = playState.history.filter((h) => userText(h.supportiveText));
-    if (trail.length) {
-      card.appendChild(el('h4', { text: 'Relevant rules applied' }));
-      const ul = el('ul', { class: 'supportive-list' });
-      trail.forEach((h) => ul.appendChild(el('li', {}, [
-        el('strong', { text: (h.citation ? h.citation + ': ' : '') }),
-        document.createTextNode(userText(h.supportiveText))
-      ])));
-      card.appendChild(ul);
-    }
-
     const outcomePath = playState.history.map((h) => h.nodeId).concat([playState.currentId]);
     // The node IDs match the decision tree, rules.json and the test suite.
     card.appendChild(el('div', {}, [
-      el('h4', { text: 'Decision path (node IDs)' }),
+      el('h3', { class: 'card-heading', text: 'Decision path (node IDs)' }),
       el('div', { class: 'path-trace', text: outcomePath.join('  →  ') })
     ]));
     // Every path through the tree is one case in the test suite; this opens
@@ -559,7 +588,7 @@
     if (disclaimer) card.appendChild(el('p', { class: 'result-disclaimer', text: disclaimer }));
 
     card.appendChild(el('div', { class: 'result-actions no-print' }, [
-      el('button', { class: 'btn btn-primary', text: 'Start over', onclick: () => { playState = newPlayState(true); renderPlay(); } }),
+      el('button', { class: 'btn btn-primary', text: 'Start over', onclick: () => { playState = newPlayState(true); playFocus = true; renderPlay(); } }),
       el('button', { class: 'btn', text: 'Print / save as PDF', onclick: () => window.print() })
     ]));
   }
@@ -656,8 +685,10 @@
       ['disclaimer', 'Disclaimer (intro and result)'],
       ['lawUrl', 'Law text URL (riksdagen.se)', 'url'],
     ].forEach(([key, label, type]) => {
-      root.appendChild(el('label', { text: label }));
-      root.appendChild(input(rules.meta[key] || '', (v) => { rules.meta[key] = v; applyHeader(); renderJsonPreview(); }, type, 'wide'));
+      root.appendChild(el('label', { text: label, for: 'meta-' + key }));
+      const field = input(rules.meta[key] || '', (v) => { rules.meta[key] = v; applyHeader(); renderJsonPreview(); }, type, 'wide');
+      field.id = 'meta-' + key;
+      root.appendChild(field);
     });
   }
 
@@ -670,7 +701,7 @@
     table.appendChild(el('thead', {}, [el('tr', {}, [
       el('th', { text: 'id' }), el('th', { text: 'label' }), el('th', { text: 'type' }),
       el('th', { text: 'min' }), el('th', { text: 'max' }), el('th', { text: 'unit' }), el('th', { text: 'values (enum, comma-sep)' }),
-      el('th', { text: 'default' }), el('th', { text: 'example' }), el('th', { text: 'legal source' }), el('th', { text: '' })
+      el('th', { text: 'default' }), el('th', { text: 'example' }), el('th', { text: 'legal source' }), el('th', {}, [el('span', { class: 'visually-hidden', text: 'delete' })])
     ])]));
     const tbody = el('tbody');
     table.appendChild(tbody);
@@ -698,10 +729,11 @@
       row.appendChild(td(input(attr.default ?? '', (v) => { setOptional(attr, 'default', RaC.textToValue(attr, v)); renderJsonPreview(); })));
       row.appendChild(td(input(attr.example ?? '', (v) => { setOptional(attr, 'example', RaC.textToValue(attr, v)); renderJsonPreview(); })));
       row.appendChild(td(input(attr.source || '', (v) => { attr.source = v; renderJsonPreview(); })));
-      row.appendChild(td(el('button', { class: 'btn btn-danger-outline', text: '✕', onclick: () => { rules.attributes.splice(i, 1); renderBuild(); } })));
+      row.appendChild(td(el('button', { class: 'btn btn-danger-outline', text: '✕', 'aria-label': 'Delete variable ' + (attr.id || i + 1), onclick: () => { rules.attributes.splice(i, 1); renderBuild(); } })));
       tbody.appendChild(row);
     });
 
+    labelTableControls(table);
     root.appendChild(table);
     root.appendChild(el('button', {
       class: 'btn btn-secondary', text: '+ Add variable', onclick: () => {
@@ -719,7 +751,8 @@
     const entries = rules.glossary || [];
     if (entries.length) {
       const table = el('table', { class: 'editor-table glossary-editor' });
-      table.appendChild(el('thead', {}, [el('tr', {}, ['term', 'swedish', 'definition', 'legal source', ''].map((h) => el('th', { text: h })))]));
+      table.appendChild(el('thead', {}, [el('tr', {}, ['term', 'swedish', 'definition', 'legal source'].map((h) => el('th', { text: h }))
+        .concat([el('th', {}, [el('span', { class: 'visually-hidden', text: 'delete' })])]))]));
       const tbody = el('tbody');
       entries.forEach((g, i) => {
         tbody.appendChild(el('tr', {}, [
@@ -732,6 +765,7 @@
         ]));
       });
       table.appendChild(tbody);
+      labelTableControls(table);
       root.appendChild(table);
     }
     root.appendChild(el('button', {
@@ -985,6 +1019,21 @@
     return s;
   }
   function td(child) { return el('td', {}, [child]); }
+
+  // Editor tables have no visible label per field, so each field gets one
+  // for screen readers: its column heading plus the row's first value,
+  // e.g. "label, q1_1_equity_below_half".
+  function labelTableControls(table) {
+    const heads = $all('thead th', table).map((th) => th.textContent.trim());
+    $all('tbody tr', table).forEach((tr, r) => {
+      const cells = Array.from(tr.children);
+      const first = cells[0] && cells[0].querySelector('input, textarea');
+      const key = (first && first.value) || 'row ' + (r + 1);
+      cells.forEach((cell, i) => cell.querySelectorAll('input, select, textarea').forEach((c) => {
+        if (!c.hasAttribute('aria-label')) c.setAttribute('aria-label', (heads[i] || 'value') + ', ' + key);
+      }));
+    });
+  }
   function missingText(value) { return value ? '⚠ missing: ' + value : '— choose —'; }
 
   function renderStartSelector() {
@@ -994,8 +1043,10 @@
     // A new file has no start yet, so its first node becomes the start. A
     // start that points to a deleted node is kept and shown as missing.
     if (!rules.start && nodeIds.length) { rules.start = nodeIds[0]; renderJsonPreview(); }
-    root.appendChild(el('label', {}, ['Start node: '].concat(bpmnBadge() ? [bpmnBadge()] : [])));
-    root.appendChild(select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }, missingText(rules.start)));
+    root.appendChild(el('label', { for: 'start-node' }, ['Start node: '].concat(bpmnBadge() ? [bpmnBadge()] : [])));
+    const start = select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }, missingText(rules.start));
+    start.id = 'start-node';
+    root.appendChild(start);
   }
 
   function renderValidation() {
@@ -1256,26 +1307,73 @@
       el('button', { class: 'btn-link inline-link', text: 'Test results', onclick: () => showTab('results') }),
       '.'
     ]));
+    root.appendChild(el('p', { class: 'supportive tests-legend', text:
+      'Each row only uses the answers on its own path. Values in brackets, like (false), are fillers for questions that path never reaches, so they don\'t affect the result.' }));
 
     const suite = RaC.generateTestSuite(rules);
-    const table = el('table', { class: 'editor-table tests-table' });
-    const attrCols = (rules.attributes || []).map((a) => a.id);
-    table.appendChild(el('thead', {}, [el('tr', {}, ['test_id', 'description'].concat(attrCols).concat(['expected_outcome', 'expected_path', 'edge_class']).map((h) => el('th', { text: h })))]));
+    const table = el('table', { class: 'editor-table tests-table' }, [
+      el('caption', { class: 'visually-hidden', text: 'Test suite: one row per test case, with its inputs and expected result' })
+    ]);
+    const attributes = rules.attributes || [];
+    // Column headings are the CSV's column names. They may break after an
+    // underscore, so a long variable name wraps instead of making its
+    // column of short true/false values very wide; the full label is the tooltip.
+    const head = (name, cls, title) => {
+      const parts = String(name).split('_');
+      const th = el('th', { scope: 'col', class: cls || '' }, parts.flatMap((p, i) => i < parts.length - 1 ? [p + '_', el('wbr')] : [p]));
+      if (title) th.title = title;
+      return th;
+    };
+    table.appendChild(el('thead', {}, [el('tr', {}, [head('test_id'), head('description')]
+      .concat(attributes.map((a) => head(a.id, 'col-var', a.label)))
+      .concat([head('expected_outcome'), head('expected_path'), head('edge_class')]))]));
+    // Which inputs a row actually uses: the questions on its path, or for an
+    // invalid-input row the one value it breaks. The generator still fills
+    // in every variable (so each CSV row is complete); the others are shown
+    // faded in brackets, since the engine never reads them.
+    const usedFacts = (row) => {
+      if (row.edge_class === 'negative') {
+        const bad = attributes.find((a) => row.description.indexOf(a.label) !== -1 && !(a.id in row.inputs)) ||
+          attributes.find((a) => a.id in row.inputs && RaC.validateValue(a, row.inputs[a.id]));
+        return new Set(bad ? [bad.id] : []);
+      }
+      return new Set(String(row.expected_path).split('>').map((id) => rules.nodes[id] && rules.nodes[id].fact).filter(Boolean));
+    };
+    // One value cell. Empty cells show a dash, read out as "empty".
+    const valueCell = (v, used, invalid) => {
+      const empty = v === undefined || v === '';
+      if (!used) {
+        return el('td', { class: 'col-var v-unused', title: 'Not asked on this path, so it does not affect the result' }, [
+          el('span', { 'aria-hidden': 'true', text: empty ? '–' : '(' + String(v) + ')' }),
+          el('span', { class: 'visually-hidden', text: (empty ? 'empty' : String(v)) + ', not asked' })
+        ]);
+      }
+      return el('td', { class: 'col-var' + (invalid ? ' v-invalid' : '') }, empty
+        ? [el('span', { 'aria-hidden': 'true', text: '–' }), el('span', { class: 'visually-hidden', text: invalid ? 'missing, invalid' : 'empty' })]
+        : [String(v)].concat(invalid ? [el('span', { class: 'visually-hidden', text: ', invalid' })] : []));
+    };
+    // Paths ("Q1_1>Q2_1>…") may break after each ">", so they wrap between
+    // node IDs instead of in the middle of one.
+    const pathCell = (text) => {
+      const parts = String(text || '').split('>');
+      return el('td', { class: 'col-wrap' }, parts.flatMap((p, i) => i < parts.length - 1 ? [p + '>', el('wbr')] : [p]));
+    };
     const tbody = el('tbody');
     suite.forEach((row) => {
       const tr = el('tr', { class: 'edge-' + row.edge_class });
-      tr.appendChild(el('td', { text: row.test_id }));
-      tr.appendChild(el('td', { text: row.description }));
-      attrCols.forEach((id) => tr.appendChild(el('td', { text: row.inputs[id] === undefined ? '' : String(row.inputs[id]) })));
-      tr.appendChild(el('td', { text: row.expected_outcome }));
-      tr.appendChild(el('td', { text: row.expected_path }));
+      tr.appendChild(el('th', { scope: 'row', text: row.test_id }));
+      tr.appendChild(pathCell(row.description));
+      const used = usedFacts(row);
+      attributes.forEach((a) => tr.appendChild(valueCell(row.inputs[a.id], used.has(a.id), row.edge_class === 'negative' && used.has(a.id))));
+      tr.appendChild(el('td', { class: 'col-wrap', text: row.expected_outcome }));
+      tr.appendChild(pathCell(row.expected_path));
       tr.appendChild(el('td', { text: row.edge_class }));
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     // The table scrolls inside its own box (header and test ID stay put),
     // so the page itself never scrolls sideways.
-    root.appendChild(el('div', { class: 'table-scroll' }, [table]));
+    root.appendChild(el('div', { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Test suite table (scrolls sideways)' }, [table]));
   }
 
   // ---------------------------------------------------------------------
@@ -1320,7 +1418,7 @@
       root.appendChild(el('div', { class: 'notice notice-error', text: 'Fix validation errors in the Build tab before running the tests.' }));
       return;
     }
-    root.appendChild(el('p', { class: 'supportive', text: 'Running every test case through the rules engine…' }));
+    root.appendChild(el('p', { class: 'supportive', role: 'status', text: 'Running every test case through the rules engine…' }));
 
     let results;
     try {
@@ -1452,10 +1550,16 @@
     });
     groups.forEach((g) => {
       const failed = g.cases.filter((r) => !r.pass).length;
-      list.appendChild(el('h3', { class: 'results-group' }, [
+      list.appendChild(el('h2', { class: 'results-group' }, [
         el('span', { text: g.outcome === 'ERROR' ? 'Error: invalid input rejected' : g.outcome }),
         el('span', { class: 'results-group-count', text: g.cases.length + (g.cases.length === 1 ? ' case' : ' cases') + (failed ? ' · ' + failed + ' failed' : ' · all passed') })
       ]));
+      // Invalid-input cases are expected to end in an error; say so, so a
+      // reader doesn't take the word "Error" for a problem with the tool.
+      if (g.outcome === 'ERROR') {
+        list.appendChild(el('p', { class: 'supportive', text:
+          'These tests make sure the tool refuses answers it can\'t use, such as "maybe" instead of yes or no, or a blank, so a bad answer never produces a wrong result. Each one should end in an error, so "Passed" means the tool caught it.' }));
+      }
       g.cases.forEach((r) => list.appendChild(testCaseItem(r, r === yours)));
     });
   }
