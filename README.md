@@ -12,92 +12,77 @@ The code contains no legal logic. Every question, branch, outcome and input rule
 - **Accountants and auditors** walking a client through the steps (control balance sheet, control meetings, court application) and printing the result for the file.
 - **Law and business students** learning chapter 25: following each step with its legal source next to it.
 
-## Setup
+## Quick start
 
-`vendor/json-rules-engine.bundle.js` is prebuilt and committed — the site works with no setup. Rebuild only after changing the `json-rules-engine` version:
-
-```
-npm install
-npm run build:engine
-```
+1. Open the site: [takodahuff.github.io/rac_prototype](https://takodahuff.github.io/rac_prototype/). To run it locally, see [Run](#run).
+2. **User** (the default view) is the questionnaire. Answer the questions to get a result, the legal source of each step, and the rule json-rules-engine checked at each step.
+3. **Developer** adds the tools:
+   - **Example** dropdown: switch between the Chapter 25 rules and the alcohol purchase example. A link ending in `?example=alcohol` opens the example directly.
+   - **Upload BPMN / Upload JSON**: load your own decision tree. It replaces what's loaded.
+   - **Build** tab: edit questions, variables (e.g. a maximum age) and outcomes. The flowchart, Play and the tests update immediately.
+   - **Download JSON / Download BPMN**: save your changes. Edits only last until the page is reloaded, so download them.
 
 ## Run
 
-The page loads `rules.json` with `fetch()`, which browsers block for `file://` pages — so serve the folder rather than opening `index.html` directly:
+The site needs no installing: the engine (`vendor/json-rules-engine.bundle.js`) is prebuilt and committed. The page loads its rules with `fetch()`, which browsers block for `file://` pages, so serve the folder instead of opening `index.html` directly:
 
 ```
-python3 -m http.server
+python3 -m http.server      # Windows: py -m http.server
 ```
 
-then open `http://localhost:8000/`. On GitHub Pages it works as-is.
+Then open `http://localhost:8000/`. On GitHub Pages it works as is.
 
-## Importing the BPMN
+The tests and command-line tools need Node.js. Run `npm install` once, then `npm test`. Rebuild the engine (`npm run build:engine`) only after changing the `json-rules-engine` version.
 
-The decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rules.bpmn`** next to `rules.json`. `js/bpmn.js` turns it into `rules.json`, keeping every node ID. It runs in two places:
+## BPMN
 
-- **Command line** — writes `rules.json` directly:
+The Chapter 25 decision tree is drawn in BPMN (bpmn.io, Camunda Modeler) and kept as **`rules.bpmn`** next to `rules.json`. `js/bpmn.js` converts it, keeping every node ID.
 
-  ```
-  npm run import:bpmn -- rules.bpmn
-  ```
+- **Upload BPMN** (browser) replaces the loaded rules with the uploaded tree.
+- **Download BPMN** draws the current rules, edits included, as a new BPMN diagram (laid out automatically). Everything the diagram doesn't show (variable ranges, supportive texts, short labels, glossary, intro texts) is saved inside the same file, so uploading it again gives back exactly the same rules. What the diagram shows still wins: a question renamed in bpmn.io is renamed in the rules too.
+- **`npm run import:bpmn -- rules.bpmn`** (command line) updates `rules.json` from a new version of the tree (see [Updating to a new BPMN](#updating-to-a-new-bpmn)).
 
-- **Browser** — Author view → **Upload BPMN**. The converted rules replace the ones in the browser tab and a report shows what changed. **Download JSON** then saves them as `rules.json`; replace the file in the repo and save the BPMN as `rules.bpmn`, as the report says.
+**How to draw it:**
+- Use exclusive (XOR) gateways for questions. Each needs exactly one arrow whose name starts with `Yes` and one starting with `No`. A note after it (`No – too young`) is fine.
+- For a number, write the condition in square brackets in the gateway's name: `How old is the person? [age >= 20 years]`. A later gateway with `[age >= 18 years]` reuses the age instead of asking again.
+- Give every end event a name: it becomes the result.
+- Start from `examples/alcohol-purchase-eligibility.bpmn` (or **Download BPMN** on the site), which uses all of the above.
 
 | BPMN | rules.json |
 |---|---|
-| Exclusive gateway `Q1_1` named `Q1.1 Question text? (Ch. 25 Sec. 13 Companies Act)` | Yes/no decision node `Q1_1` with `question` and `citation` |
-| Arrows named `Yes…` / `No…` | `true` / `false` targets; a note after the dash (`No – defect: not convened`) goes into a new question's supportive text |
-| End event | Outcome node; its name becomes the `description` |
+| Exclusive gateway `Q1_1` named `Q1.1 Question text? (Ch. 25 Sec. 13 Companies Act)` | Decision node `Q1_1` with `question` and `citation` |
+| `[age >= 20 years]` in a gateway's name | A number question: variable `age` (unit `years`), Yes when the condition holds (`>=`, `>`, `<=`, `<`, `=`, `!=`) |
+| `[visibly_intoxicated]` in a gateway's name | Names its yes/no variable |
+| Gateways with the same variable or the same question text | One shared variable: asked once, later gateways reuse the answer |
+| Arrows named `Yes…` / `No…` | `true` / `false` targets (`Yes`, `Yes – note`, `Yes, note`, `Yes: note`); a note goes into a new question's supportive text |
+| Arrow note containing "defect" that leads on to another question | A defect warning, listed on the result |
+| End event | Outcome node; its name becomes the `description` (an unnamed one takes the text of the arrow or task leading into it) |
+| Text annotation with `Title:`, `Law text: <url>`, `Legal source:`, `Intro:`, `Who it is for:`, `Disclaimer:` lines | The rule set's title, law link and intro texts |
 | Start event | `start` |
-| Task or intermediate event with one outgoing arrow | passed through |
+| Task or intermediate event with one outgoing arrow | Passed through |
+| Rules saved in `<extensionElements>` (written by **Download BPMN**) | Everything the diagram doesn't show |
 
-**Update, not replace.** The import is meant for new versions of the same tree. For every node ID that still exists, it takes the left column below from the BPMN and keeps the right column from the current `rules.json`:
+Questions without a `[variable >= number]` condition come in as yes/no; a multiple-choice question needs its `type` and `values` set in the Build tab afterwards. If a gateway breaks these rules, nothing is loaded and the problems are listed.
+
+### Updating to a new BPMN
+
+The command line updates rather than replaces: for every node ID that still exists, it takes the left column from the BPMN and keeps the right column from the current `rules.json`.
 
 | From the BPMN (change it there) | Kept from rules.json (edit in the Build tab) |
 |---|---|
 | Questions, operator and value | Supportive texts (stödtext) |
 | Citations | Short outcome labels |
 | Yes/No targets, start node | Variables (data dictionary) |
-| Defect warnings (a `No – defect…` arrow that leads on to another question) | Glossary |
+| Defect warnings | Glossary |
 | Outcome descriptions | Title, intro, audience, disclaimer |
 
-A variable's `source` follows a changed citation; a variable `label` that differs from a changed question is kept and listed for review. New questions get a yes/no variable and a `TODO (stödtext)` marker. The import stores the BPMN's path in `meta.bpmnFile`; `npm test` re-imports that file and checks that it still gives the same tree as `rules.json`.
-
-**A different law:** in the browser, click **New** first and then **Upload BPMN** — nothing is kept, and the rule set is named after the BPMN process. On the command line, import into a new file with `--out <new file>.json`.
-
-In the Build tab, fields filled by the import carry a **from BPMN** mark, and a note at the top says which BPMN the rules came from. The import report lists what came from the BPMN, what was kept, and what is still to add in the Build tab.
-
-**Defect warnings.** When an arrow's note contains "defect" and the arrow leads on to another question (e.g. Q2.2 `No – defect noted: auditor review missing`), the import stores the note as `"warnings": { "false": "Defect noted: auditor review missing." }` on that question. The result page then lists every defect noted on the way, and `decide()` returns them as `warnings`. Defect arrows that end the tree (e.g. Q2.1 → Liab_1) need no warning, because the outcome itself says so.
-
-Every gateway must be exclusive (XOR) with exactly one `Yes` and one `No` arrow; otherwise nothing is written and the problems are listed. Questions that need a number or a choice instead of yes/no come in as yes/no — set their `type`, `values`/`min`/`max` and condition in `rules.json` afterwards. Use `--out <file>` to write somewhere other than `rules.json`.
-
-### Updating to a new BPMN
-
 1. Replace `rules.bpmn` with the new file (keep the name).
-2. Import it (this overwrites `rules.json`):
+2. Run `npm run import:bpmn -- rules.bpmn`. This overwrites `rules.json` and prints a report: new, removed and changed nodes, and questions still without a supportive text. (Use `--out <file>.json` to write a different file, e.g. for a different law.)
+3. Review the changes with `git diff rules.json`.
+4. Run `npm run build:docs` and `npm test`.
+5. Commit `rules.json`, `rules.bpmn` and the `docs/` files together.
 
-   ```
-   npm run import:bpmn -- rules.bpmn
-   ```
-
-   Or in the browser: Author view → **Upload BPMN** → **Download JSON**, and replace `rules.json` with the downloaded file.
-
-3. Read the printed report: new, removed and changed nodes, questions that still need supportive text, and whether the data dictionary checks pass.
-4. Review the changes with `git diff rules.json`. Question texts are taken from the BPMN exactly as written; supportive texts, short outcome labels, intro texts and variables are kept.
-5. Regenerate the report files and run the tests:
-
-   ```
-   npm run build:docs
-   npm test
-   ```
-
-6. Commit `rules.json`, the new BPMN and the `docs/` files together.
-
-The import never changes the BPMN, and git keeps the previous `rules.json`, so a bad import can be undone with `git checkout rules.json`.
-
-**For whoever draws the BPMN:**
-- Every gateway needs exactly one arrow whose name starts with `Yes` and one starting with `No`. A note after a dash (`No – defect: …`) is fine and goes into the supportive text.
-- Questions that ask for an amount, a date or a choice between several options are imported as yes/no, because the diagram doesn't say otherwise. List them for the IS team, who then set their `type` and condition in `rules.json`.
+A bad import can be undone with `git checkout rules.json`; the import never changes the BPMN. `npm test` re-imports the BPMN named in `meta.bpmnFile` and checks that it still gives the same tree as `rules.json`.
 
 ## Runner (command line)
 
@@ -135,26 +120,29 @@ rules.bpmn          the decision tree (BPMN), source of rules.json
 rules.json          the law the site runs
 css/styles.css      all styles (light and dark theme)
 js/logic.js         core logic, no DOM
-js/bpmn.js          BPMN importer (browser and command line)
+js/bpmn.js          BPMN import and export (browser and command line)
 js/app.js           UI
 vendor/             prebuilt json-rules-engine bundle
 scripts/            build tooling (not loaded by the site)
 test/               npm test
 docs/               report deliverables (data dictionary, glossary, test suite)
+examples/           example rule sets for the Example dropdown, listed in examples.json
 ```
 
-- `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Author view only change the rules in the browser tab until you download them.
+- `rules.json` — **the** rules file: the law the site runs, including the data dictionary. The only source of truth; **New**, **Upload JSON** and **Upload BPMN** in the Developer view only change the rules in the browser tab until you download them.
 - `index.html` — markup and the page itself; styles are in `css/styles.css`.
 - `icons/` — the site icon: `favicon.svg` (modern browsers), `favicon.ico` (16/32/48 px, older browsers) and `apple-touch-icon.png` (180 px, phone home screens). Blue rounded square with a white § and a gold line; the § is an outline of the Gelasio Bold font (SIL Open Font License).
 - `js/logic.js` — condition evaluation, rules and input validation (data dictionary), `decide()`, path traversal, test-suite generation and running. No DOM; runs in Node.
 - `js/app.js` — UI, built on `js/logic.js`.
-- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, and that importing the BPMN named in `meta.bpmnFile` gives the same tree as `rules.json`.
+- `test/test-logic.js` — `npm test`. Requires `npm install`. Checks that `rules.json` and its data dictionary validate, that the checks catch broken rules files, that every generated row gives its expected outcome and path (negative rows: `ERROR`), that `docs/test-suite-full.csv` passes in the runner, that the `docs/` files are up to date, that importing the BPMN named in `meta.bpmnFile` gives the same tree as `rules.json`, that **Download BPMN** files upload again as the same rules, and that every example loads.
 - `scripts/runner.js` — the command-line runner (`npm run decide`, `npm run test:suite`).
-- `js/bpmn.js` — the BPMN importer, used by **Upload BPMN** and by `scripts/bpmn-to-rules.js` (`npm run import:bpmn`).
+- `js/bpmn.js` — the BPMN importer, used by **Upload BPMN** and by `scripts/bpmn-to-rules.js` (`npm run import:bpmn`), and the exporter behind **Download BPMN**.
 - `scripts/build-docs.js` — regenerates the `docs/` report files from `rules.json` (`npm run build:docs`).
 - `scripts/engine-bundle-src.js`, `scripts/build-vendor.js` — build the browser engine bundle (`npm run build:engine`).
 - `vendor/json-rules-engine.bundle.js` — committed, prebuilt. Not hand-edited.
 - `rules.bpmn` — the Law students' decision tree in BPMN; `rules.json` is imported from it (node IDs match).
+- `examples/alcohol-purchase-eligibility.bpmn` — a small example tree for learning the format: number questions (age), a question asked once and reused, and the law link and intro texts in a text annotation. Pick it in the **Example** dropdown to try it; `npm test` checks that it imports.
+- `examples/examples.json` — the list behind the **Example** dropdown: `[{ "id", "name", "file" }]`, with paths from the project root (`rules.json` is the default). To add an example, put its BPMN or JSON file in `examples/` and add one line here; `npm test` fails if a file in `examples/` isn't listed, or if a listed one doesn't load.
 - `docs/data-dictionary.csv`/`.json`, `docs/glossary.csv`, `docs/test-suite-full.csv` — generated from `rules.json` for the report by `npm run build:docs`. `npm test` fails if they are out of date.
 
 ## Condition evaluation
@@ -164,21 +152,28 @@ Every condition runs through the real `json-rules-engine` — no reimplementatio
 - Node: `require('json-rules-engine')`.
 - Browser: `vendor/json-rules-engine.bundle.js` (loads before `js/logic.js`, sets `window.JsonRulesEngine`).
 
-If neither is available, `evaluateCondition` throws — badge reads "not loaded", Play tab shows the error. Run Setup.
+There is no fallback: if neither is available, `evaluateCondition` throws, the badge reads "not loaded" and Play shows the error (see [Run](#run)). Every decision node is one engine run, so a result that reached an outcome was decided by the engine.
 
 ## Views
 
-The header switch picks the view; `#author` in the URL opens the Author view directly.
+The header switch picks the view; `#developer` in the URL opens the Developer view directly. `?example=<id>` opens an example from `examples/examples.json` instead of `rules.json`, in either view (e.g. `?example=alcohol` as a link for students).
 
-- **Check a rule** (default) — only the questionnaire, for people checking the rule.
-- **Author** — adds the toolbar (New, Upload JSON, Upload BPMN, Download JSON, Download CSV, engine badge) and the Build, Test suite and Test results tabs.
+- **User** (default) — only the questionnaire, for people checking the rule.
+- **Developer** — adds the toolbar (New, Upload JSON, Upload BPMN, Download JSON, Download BPMN, Download CSV) and the Build, Test suite and Test results tabs, with the **Example** dropdown and the engine badge at the right of the tab bar. Switching examples asks first if there are changes that haven't been downloaded.
 
 ## Tabs
 
-- **Play** — starts with an intro (what the tool checks, who it's for, a "not legal advice" note), then one question per screen. Shows "Question N of up to M" (M = longest possible path from here) and each question's legal source, linked to the law text, plus a collapsible explanation (with the Swedish term and legal source) of any glossary term the question uses. Placeholder text starting with `TODO` (e.g. `TODO (stödtext)`) is hidden. Each answer is checked against the data dictionary before the next question. Ends with the outcome and the glossary terms it uses, the decision path (node IDs), a list of your answers, each with the rule applied at that question (its supportive text) and its legal source (**Change** jumps back to any of them; answers given before stay highlighted), **Print / save as PDF**, which prints just the result, and **See this result in the test suite**, which opens the Test results tab at the test case with the same answers.
-- **Build** — edit `rules.json`: law details, data dictionary, glossary, nodes, start node. For rules imported from a BPMN, a note at the top and **from BPMN** marks show which fields the next import overwrites. A flowchart shows the whole tree; click a box to jump to that node's editor, or **↓** to save it as an SVG (e.g. for the report). The flowchart uses Mermaid, loaded from cdn.jsdelivr.net the first time the Build tab opens, so it needs an internet connection. Validates on every edit (data dictionary, missing refs, missing outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** and validation lists them until you choose another. Edits stay in the browser — **Download JSON** saves them as `rules.json` in the same layout as the repo file (one variable or node per line); replace the file in the repo to make them permanent.
-- **Test suite** — one row per path, one boundary row per numeric threshold, one negative row per variable. **Download CSV** in the toolbar. Columns: `test_id, description, inputs, expected_outcome, expected_path(node_ids), edge_class`. Draft — review before submitting. The table scrolls inside its own box, with the header and test ID pinned.
-- **Test results** — the same test cases, each run through the rules engine and shown as a readable card instead of a table row: a pass/fail summary, filters (search, outcome, type, passed/failed), and cases grouped by outcome. Each card shows the answers on its path (e.g. `Q1_1 Yes › Q2_2 No › … › End_3`) and any defect noted; opening it lists the questions in order with their answers, the result and its description, and whether the engine agreed. Invalid input cases show which answer is invalid and the error the engine gave. **All inputs** shows the full CSV row. Opened from a Play result, it jumps to and highlights that case (**Back to your result** returns).
+- **Play** — the questionnaire.
+  - Starts with an intro: what the tool checks, who it's for, and a disclaimer if one is set.
+  - One question per screen, with "Question N of up to M", its legal source (linked to the law text) and any glossary terms it uses. A question whose answer is already known (e.g. "18 or older?" after the age) isn't asked again.
+  - Each answer is checked against the data dictionary before the next question.
+  - The result shows the outcome; your answers with the rule and legal source of each (**Change** goes back); **Checked by json-rules-engine**, the rule the engine ran at each question (e.g. `Q1  age ≥ 20 → false`); **Print / save as PDF**; and **See this result in the test suite**.
+- **Build** — edit the rules: law details, data dictionary, glossary, nodes and start node.
+  - A flowchart shows the whole tree; click a box to jump to its node, or **↓** to save it as an SVG. It uses Mermaid from cdn.jsdelivr.net, so it needs an internet connection.
+  - Validates on every edit (data dictionary, missing targets and outcomes, cycles, unreachable nodes). Deleting a node or variable never re-points what used it: those dropdowns show **⚠ missing** until you choose another.
+  - Edits stay in the browser tab. **Download JSON** saves them as `rules.json` in the repo's layout; **Download BPMN** saves them as a BPMN diagram.
+- **Test suite** — the generated test cases as a table (the same as **Download CSV**): one row per path, one boundary row per number limit, one invalid-input row per variable. Columns: `test_id, description`, one per variable, `expected_outcome, expected_path(node_ids), edge_class`.
+- **Test results** — every test case run through the engine, as readable cards: a pass/fail summary, filters, and cases grouped by outcome. Opening a card lists its questions, answers, result and whether the engine agreed.
 
 ## rules.json schema
 
@@ -222,7 +217,7 @@ The header switch picks the view; `#author` in the URL opens the Author view dir
 - `meta.intro`, `meta.audience`, `meta.disclaimer`: shown on the intro screen; the disclaimer is also printed on the result. `meta.description` is for authors only and isn't shown.
 - `glossary`: the defined legal terms, written by the Law team. When a question or an outcome contains a `term` (whole words, case-insensitive), it is shown under it with its `swedish` term, `definition` and `source`. Terms whose definition is empty or `TODO` are hidden. `validateRules` reports a duplicate term as an error, and a missing definition or source, or a term that appears in no question or outcome, as a warning. `docs/glossary.csv` is generated from it for the report. Edit it in the Build tab (section 3, Glossary) or in the file.
 - `meta.shortTitle` and `meta.subtitle`: the page header (fall back to `meta.title` and `meta.legalSource`).
-- `meta.bpmnFile`: the BPMN this file was imported from (set by `npm run import:bpmn`, checked by `npm test`).
+- `meta.bpmnFile`: the BPMN this file was imported from (set by the import, checked by `npm test`).
 - `meta.lawUrl`: the law text on riksdagen.se. A citation like `25 kap. 13 § ABL` or `Ch. 25 Sec. 13 Companies Act` links to `lawUrl#K25P13` (`12 b §` → `#K1P12b`, `25 kap. ABL` → `#K25`; ranges and lists use their first paragraph). Nodes without a citation show `meta.legalSource`.
 - Outcome node: leaf. `label` is shown and used as `expected_outcome`.
 - Operators: `equal, notEqual, lessThan, lessThanInclusive, greaterThan, greaterThanInclusive, in, notIn`.
@@ -255,16 +250,16 @@ Every input is checked against the data dictionary before the engine runs — in
 - Citations name the paragraph (`25 kap. 13 §`), not just the chapter (`25 kap. ABL`), so they deep-link.
 - Intro, audience and disclaimer texts reviewed, and every glossary term has a definition.
 - Every variable has a `label`, `source` and `example`; numbers have their range and unit; optional inputs have a `default`.
-- No `TODO (stödtext)` left. Only text starting with `TODO` is hidden; anything else (e.g. "TBD") is shown to users.
+- No `TODO` placeholders left. Text starting with `TODO` is hidden from users; anything else (e.g. "TBD") is shown.
 - Every outcome has a clear `label` and a `description` explaining what the result means.
 - One language for all user-facing text.
 - Yes/no questions use `equal` / `true`, so "Yes" follows the `true` branch (as in the flowchart).
-- No variable is used by two questions, or users are asked the same thing twice.
+- Two questions share a variable only when they ask about the same thing (e.g. two age limits); the user is then asked once.
 - Node IDs stay stable (flowchart, test CSV, decision path).
-- To update: edit the file directly, or Author → Build → **Download JSON** and replace it; then run `npm run build:docs`, `npm test` and reload.
+- To update: edit the file directly, or Developer → Build → **Download JSON** and replace it; then run `npm run build:docs`, `npm test` and reload.
 
 ## Limitations
 
 - One condition per node — model AND/OR as separate nodes.
 - Boundary test generation assumes a fact's range isn't narrowed further later on the same path.
-- The BPMN import reads yes/no gateways only; number and choice questions need their type and condition set by hand after importing.
+- The BPMN import reads yes/no and number conditions; multiple-choice questions need their type and values set by hand after importing.

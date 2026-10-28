@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:rac="https://takodahuff.github.io/rac_prototype/rules" id="Definitions_rules" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Rule-as-Code prototype" exporterVersion="1">
+  <bpmn:process id="Process_rules" name="Alcohol purchase eligibility" isExecutable="false">
+    <bpmn:extensionElements>
+      <rac:rules>{
+  &quot;meta&quot;: {
+    &quot;lawUrl&quot;: &quot;https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/alkohollag-20101622_sfs-2010-1622/&quot;,
+    &quot;legalSource&quot;: &quot;Alkohollag (2010:1622) 3 kap. 7–8 §§&quot;,
+    &quot;intro&quot;: &quot;This example checks whether a person may buy alcohol in Sweden, based on their age and whether they are visibly intoxicated.&quot;,
+    &quot;audience&quot;: &quot;Students learning how a rule in a law becomes a decision tree.&quot;,
+    &quot;title&quot;: &quot;Alcohol purchase eligibility&quot;
+  },
+  &quot;attributes&quot;: [
+    {
+      &quot;id&quot;: &quot;age&quot;,
+      &quot;label&quot;: &quot;How old is the person?&quot;,
+      &quot;type&quot;: &quot;number&quot;,
+      &quot;min&quot;: 0,
+      &quot;example&quot;: 20,
+      &quot;unit&quot;: &quot;years&quot;,
+      &quot;source&quot;: &quot;3 kap. 7 § alkohollagen&quot;,
+      &quot;max&quot;: 150
+    },
+    {
+      &quot;id&quot;: &quot;visibly_intoxicated&quot;,
+      &quot;label&quot;: &quot;Is the person visibly intoxicated?&quot;,
+      &quot;type&quot;: &quot;boolean&quot;,
+      &quot;example&quot;: true,
+      &quot;source&quot;: &quot;3 kap. 8 § alkohollagen&quot;
+    }
+  ],
+  &quot;start&quot;: &quot;Q1&quot;,
+  &quot;nodes&quot;: {
+    &quot;Q1&quot;: {
+      &quot;type&quot;: &quot;decision&quot;,
+      &quot;question&quot;: &quot;How old is the person?&quot;,
+      &quot;fact&quot;: &quot;age&quot;,
+      &quot;operator&quot;: &quot;greaterThanInclusive&quot;,
+      &quot;value&quot;: 20,
+      &quot;citation&quot;: &quot;3 kap. 7 § alkohollagen&quot;,
+      &quot;true&quot;: &quot;Q2&quot;,
+      &quot;false&quot;: &quot;Q3&quot;
+    },
+    &quot;Q2&quot;: {
+      &quot;type&quot;: &quot;decision&quot;,
+      &quot;question&quot;: &quot;Is the person visibly intoxicated?&quot;,
+      &quot;fact&quot;: &quot;visibly_intoxicated&quot;,
+      &quot;operator&quot;: &quot;equal&quot;,
+      &quot;value&quot;: true,
+      &quot;citation&quot;: &quot;3 kap. 8 § alkohollagen&quot;,
+      &quot;true&quot;: &quot;End_Intoxicated&quot;,
+      &quot;false&quot;: &quot;End_CanBuy&quot;
+    },
+    &quot;Q3&quot;: {
+      &quot;type&quot;: &quot;decision&quot;,
+      &quot;question&quot;: &quot;Is the person 18 or older?&quot;,
+      &quot;fact&quot;: &quot;age&quot;,
+      &quot;operator&quot;: &quot;greaterThanInclusive&quot;,
+      &quot;value&quot;: 18,
+      &quot;citation&quot;: &quot;3 kap. 7 § alkohollagen&quot;,
+      &quot;true&quot;: &quot;Q4&quot;,
+      &quot;false&quot;: &quot;End_Under18&quot;
+    },
+    &quot;Q4&quot;: {
+      &quot;type&quot;: &quot;decision&quot;,
+      &quot;question&quot;: &quot;Is the person visibly intoxicated?&quot;,
+      &quot;fact&quot;: &quot;visibly_intoxicated&quot;,
+      &quot;operator&quot;: &quot;equal&quot;,
+      &quot;value&quot;: true,
+      &quot;citation&quot;: &quot;3 kap. 8 § alkohollagen&quot;,
+      &quot;true&quot;: &quot;End_Intoxicated&quot;,
+      &quot;false&quot;: &quot;End_FolkolOnly&quot;
+    },
+    &quot;End_CanBuy&quot;: {
+      &quot;type&quot;: &quot;outcome&quot;,
+      &quot;label&quot;: &quot;Can buy alcohol&quot;,
+      &quot;description&quot;: &quot;Can buy alcohol – 20 or older and not visibly intoxicated (3 kap. 7 § alkohollagen).&quot;
+    },
+    &quot;End_Intoxicated&quot;: {
+      &quot;type&quot;: &quot;outcome&quot;,
+      &quot;label&quot;: &quot;Cannot buy alcohol: visibly intoxicated&quot;,
+      &quot;description&quot;: &quot;Cannot buy alcohol: visibly intoxicated – alcohol may not be sold or served to a visibly intoxicated person (3 kap. 8 § alkohollagen).&quot;
+    },
+    &quot;End_FolkolOnly&quot;: {
+      &quot;type&quot;: &quot;outcome&quot;,
+      &quot;label&quot;: &quot;Folköl and restaurant service only&quot;,
+      &quot;description&quot;: &quot;Folköl and restaurant service only – can buy folköl in shops and be served alcohol in licensed restaurants, but cannot buy at Systembolaget (3 kap. 7 § alkohollagen).&quot;
+    },
+    &quot;End_Under18&quot;: {
+      &quot;type&quot;: &quot;outcome&quot;,
+      &quot;label&quot;: &quot;Cannot buy alcohol: under 18&quot;,
+      &quot;description&quot;: &quot;Cannot buy alcohol: under 18 – alcohol may not be sold or served to anyone under 18 (3 kap. 7 § alkohollagen).&quot;
+    }
+  }
+}</rac:rules>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent" name="Start">
+      <bpmn:outgoing>Flow_start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Q1" name="How old is the person? [age &gt;= 20 years] (3 kap. 7 § alkohollagen)">
+      <bpmn:incoming>Flow_start</bpmn:incoming>
+      <bpmn:outgoing>Flow_Q1_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Q1_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Q2" name="Is the person visibly intoxicated? (3 kap. 8 § alkohollagen)">
+      <bpmn:incoming>Flow_Q1_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Q2_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Q2_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Q3" name="Is the person 18 or older? [age &gt;= 18 years] (3 kap. 7 § alkohollagen)">
+      <bpmn:incoming>Flow_Q1_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_Q3_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Q3_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Q4" name="Is the person visibly intoxicated? (3 kap. 8 § alkohollagen)">
+      <bpmn:incoming>Flow_Q3_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Q4_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Q4_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_CanBuy" name="Can buy alcohol – 20 or older and not visibly intoxicated (3 kap. 7 § alkohollagen).">
+      <bpmn:incoming>Flow_Q2_no</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Intoxicated" name="Cannot buy alcohol: visibly intoxicated – alcohol may not be sold or served to a visibly intoxicated person (3 kap. 8 § alkohollagen).">
+      <bpmn:incoming>Flow_Q2_yes</bpmn:incoming>
+      <bpmn:incoming>Flow_Q4_yes</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_FolkolOnly" name="Folköl and restaurant service only – can buy folköl in shops and be served alcohol in licensed restaurants, but cannot buy at Systembolaget (3 kap. 7 § alkohollagen).">
+      <bpmn:incoming>Flow_Q4_no</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Under18" name="Cannot buy alcohol: under 18 – alcohol may not be sold or served to anyone under 18 (3 kap. 7 § alkohollagen).">
+      <bpmn:incoming>Flow_Q3_no</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start" sourceRef="StartEvent" targetRef="Q1" />
+    <bpmn:sequenceFlow id="Flow_Q1_yes" name="Yes" sourceRef="Q1" targetRef="Q2" />
+    <bpmn:sequenceFlow id="Flow_Q1_no" name="No" sourceRef="Q1" targetRef="Q3" />
+    <bpmn:sequenceFlow id="Flow_Q2_yes" name="Yes" sourceRef="Q2" targetRef="End_Intoxicated" />
+    <bpmn:sequenceFlow id="Flow_Q2_no" name="No" sourceRef="Q2" targetRef="End_CanBuy" />
+    <bpmn:sequenceFlow id="Flow_Q3_yes" name="Yes" sourceRef="Q3" targetRef="Q4" />
+    <bpmn:sequenceFlow id="Flow_Q3_no" name="No" sourceRef="Q3" targetRef="End_Under18" />
+    <bpmn:sequenceFlow id="Flow_Q4_yes" name="Yes" sourceRef="Q4" targetRef="End_Intoxicated" />
+    <bpmn:sequenceFlow id="Flow_Q4_no" name="No" sourceRef="Q4" targetRef="End_FolkolOnly" />
+    <bpmn:textAnnotation id="RulesInfo">
+      <bpmn:text>Title: Alcohol purchase eligibility
+Law text: https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/alkohollag-20101622_sfs-2010-1622/
+Legal source: Alkohollag (2010:1622) 3 kap. 7–8 §§
+Intro: This example checks whether a person may buy alcohol in Sweden, based on their age and whether they are visibly intoxicated.
+Who it is for: Students learning how a rule in a law becomes a decision tree.</bpmn:text>
+    </bpmn:textAnnotation>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_rules">
+    <bpmndi:BPMNPlane id="Plane_rules" bpmnElement="Process_rules">
+      <bpmndi:BPMNShape id="StartEvent_di" bpmnElement="StartEvent">
+        <dc:Bounds x="142" y="289" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="115" y="331" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Q1_di" bpmnElement="Q1" isMarkerVisible="true">
+        <dc:Bounds x="265" y="282" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="245" y="338" width="90" height="70" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Q2_di" bpmnElement="Q2" isMarkerVisible="true">
+        <dc:Bounds x="475" y="282" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="455" y="338" width="90" height="70" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Q3_di" bpmnElement="Q3" isMarkerVisible="true">
+        <dc:Bounds x="475" y="450" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="455" y="506" width="90" height="84" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Q4_di" bpmnElement="Q4" isMarkerVisible="true">
+        <dc:Bounds x="685" y="501" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="557" width="90" height="70" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_CanBuy_di" bpmnElement="End_CanBuy">
+        <dc:Bounds x="692" y="319" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="361" width="90" height="98" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Intoxicated_di" bpmnElement="End_Intoxicated">
+        <dc:Bounds x="902" y="289" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="875" y="331" width="90" height="168" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_FolkolOnly_di" bpmnElement="End_FolkolOnly">
+        <dc:Bounds x="902" y="541" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="875" y="583" width="90" height="196" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Under18_di" bpmnElement="End_Under18">
+        <dc:Bounds x="692" y="669" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="711" width="90" height="126" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_start_di" bpmnElement="Flow_start">
+        <di:waypoint x="178" y="307" />
+        <di:waypoint x="265" y="307" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q1_yes_di" bpmnElement="Flow_Q1_yes">
+        <di:waypoint x="315" y="307" />
+        <di:waypoint x="475" y="307" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="321" y="287" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q1_no_di" bpmnElement="Flow_Q1_no">
+        <di:waypoint x="315" y="307" />
+        <di:waypoint x="345" y="307" />
+        <di:waypoint x="345" y="475" />
+        <di:waypoint x="475" y="475" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="351" y="311" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q2_yes_di" bpmnElement="Flow_Q2_yes">
+        <di:waypoint x="525" y="307" />
+        <di:waypoint x="902" y="307" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="531" y="287" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q2_no_di" bpmnElement="Flow_Q2_no">
+        <di:waypoint x="525" y="307" />
+        <di:waypoint x="555" y="307" />
+        <di:waypoint x="555" y="337" />
+        <di:waypoint x="692" y="337" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="561" y="311" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q3_yes_di" bpmnElement="Flow_Q3_yes">
+        <di:waypoint x="525" y="475" />
+        <di:waypoint x="555" y="475" />
+        <di:waypoint x="555" y="526" />
+        <di:waypoint x="685" y="526" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="561" y="479" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q3_no_di" bpmnElement="Flow_Q3_no">
+        <di:waypoint x="525" y="475" />
+        <di:waypoint x="555" y="475" />
+        <di:waypoint x="555" y="687" />
+        <di:waypoint x="692" y="687" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="561" y="667" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q4_yes_di" bpmnElement="Flow_Q4_yes">
+        <di:waypoint x="735" y="526" />
+        <di:waypoint x="765" y="526" />
+        <di:waypoint x="765" y="307" />
+        <di:waypoint x="902" y="307" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="771" y="506" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Q4_no_di" bpmnElement="Flow_Q4_no">
+        <di:waypoint x="735" y="526" />
+        <di:waypoint x="765" y="526" />
+        <di:waypoint x="765" y="559" />
+        <di:waypoint x="902" y="559" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="771" y="530" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="RulesInfo_di" bpmnElement="RulesInfo">
+        <dc:Bounds x="142" y="40" width="420" height="182" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

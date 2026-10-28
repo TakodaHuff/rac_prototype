@@ -157,7 +157,7 @@ header {
 }
 .header-inner { max-width: 1000px; margin: 0 auto; padding-inline: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
 
-/* View switch: "Check a rule" (default) vs "Author". */
+/* View switch: "User" (default) vs "Developer". */
 .view-switch { display: inline-flex; border: 2px solid var(--header-ink); border-radius: var(--radius); overflow: hidden; }
 .view-btn {
   border: none;
@@ -194,7 +194,7 @@ header {
 /* The [hidden] UA rule doesn't reliably hide inline <svg> in every
    browser, so force it explicitly for the two icon states. */
 .theme-toggle svg[hidden] { display: none; }
-/* The Check view hides everything meant for authors. */
+/* The User view hides everything meant for developers. */
 body.view-check .author-bar { display: none; }
 .header-eyebrow {
   font-family: var(--font-mono);
@@ -215,7 +215,7 @@ header h1 {
   text-wrap: balance;
 }
 
-/* ===== Toolbar and tabs (Author view) ===== */
+/* ===== Toolbar and tabs (Developer view) ===== */
 
 .toolbar {
   max-width: 1000px;
@@ -227,28 +227,52 @@ header h1 {
   padding-block: 10px;
   border-bottom: 2px solid var(--border);
 }
-.toolbar .spacer { flex: 1; }
 /* Upload buttons: a <label> styled as a button around a hidden file input. */
 .file-btn { margin: 0; }
 .file-btn input[type="file"] { display: none; }
 .engine-badge {
-  font-size: 12px;
+  flex: none;
+  font-size: 11px;
   color: var(--muted);
   font-family: var(--font-mono);
-  padding: 5px 10px;
+  padding: 3px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
 }
 
-.tabs {
+/* Tab bar: the tabs, with the Example dropdown and the engine badge at the
+   right (on phones the dropdown gets its own row above the tabs). The bottom line
+   is an inset shadow, so the active tab's underline can sit on top of it
+   without spilling out of the scroll box below. */
+.tabbar {
   max-width: 1000px;
   margin: 0 auto;
   padding-inline: 16px;
   display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: inset 0 -2px 0 var(--border);
+}
+.tabs {
+  display: flex;
   gap: 4px;
-  border-bottom: 2px solid var(--border);
+  flex: 1;
+  min-width: 0;
   overflow-x: auto; /* four tabs don't fit a phone screen side by side */
+  overflow-y: hidden;
+  scrollbar-width: none; /* still scrolls by swipe, without a visible scrollbar */
+}
+.tabs::-webkit-scrollbar { display: none; }
+.example-picker { flex: none; display: inline-flex; align-items: center; gap: 8px; margin: 0; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.example-picker[hidden] { display: none; }
+.example-picker select { width: auto; max-width: 260px; padding: 5px 8px; font-family: var(--font-body); font-size: 13px; text-transform: none; letter-spacing: 0; }
+/* On phones the tabs need the whole width; the badge is developer detail. */
+@media (max-width: 600px) {
+  .engine-badge { display: none; }
+  .tabbar { flex-wrap: wrap; }
+  .example-picker { order: -1; width: 100%; padding-top: 10px; }
+  .example-picker select { flex: 1; max-width: none; }
 }
 .tab-btn { white-space: nowrap; }
 .tab-btn {
@@ -262,7 +286,6 @@ header h1 {
   cursor: pointer;
   color: var(--muted);
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
 }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
@@ -287,6 +310,7 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .supportive { color: var(--muted); font-size: 14px; margin-top: 0; }
 .answer-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 6px; }
 .field-error { color: var(--danger); font-size: 13px; min-height: 18px; }
+.input-unit { align-self: center; color: var(--muted); font-size: 14px; margin-left: -4px; }
 .legal-source { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .legal-source a { color: var(--accent); font-weight: 500; }
 .answers-list { padding-left: 20px; margin: 0 0 8px; font-size: 14px; }
@@ -330,6 +354,10 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+/* The Download buttons and the result badge use the header color (dark
+   blue in light mode; in dark mode it is the same gold as the accent). */
+.toolbar .btn-primary { background: var(--header-bg); border-color: var(--header-bg); color: var(--header-ink); }
+.toolbar .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
 .btn-choice { min-width: 92px; font-weight: 600; }
 .btn-secondary { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .btn-link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 6px 0; }
@@ -340,8 +368,8 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
 
 .outcome-badge {
   display: inline-block;
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--header-bg);
+  color: var(--header-ink);
   border: none;
   padding: 9px 16px;
   border-radius: var(--radius);
@@ -360,6 +388,10 @@ main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
   padding: 10px 12px;
   overflow-wrap: anywhere; /* wraps instead of scrolling sideways */
 }
+/* One line per rule the engine ran: node ID, then the condition and result. */
+.engine-trace { list-style: none; margin: 0; display: grid; gap: 4px; }
+.engine-trace li { display: flex; gap: 12px; }
+.engine-trace .trace-id { flex: none; min-width: 4.5em; color: var(--muted); }
 .card .card-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; font-family: var(--font-mono); }
 
 /* ===== Form inputs ===== */
@@ -519,8 +551,6 @@ section.builder-block h2 {
   word-break: break-word;
 }
 
-/* "from BPMN" mark on fields the BPMN import fills. */
-.bpmn-badge { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--accent-soft-border); border-radius: var(--radius); background: var(--accent-soft); color: var(--accent); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
 
 #meta-editor label, #start-editor { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
 #start-editor { margin-bottom: 16px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
@@ -628,7 +658,7 @@ section.builder-block h2 {
 /* ===== Small screens ===== */
 
 @media (max-width: 480px) {
-  .toolbar, .tabs, main, .header-inner { padding-inline: 12px; }
+  .toolbar, .tabbar, main, .header-inner { padding-inline: 12px; }
 }
 
 /* ===== Print / save as PDF: just the result, in black on white ===== */
@@ -638,7 +668,7 @@ section.builder-block h2 {
     --text: #000000; --muted: #333333; --accent: #000000; --accent-ink: #ffffff;
   }
   @page { margin: 18mm; }
-  header, .toolbar, .tabs, .law-title, .no-print { display: none !important; }
+  header, .toolbar, .tabbar, .law-title, .no-print { display: none !important; }
   main { padding: 0; max-width: none; }
   .card { border: none; padding: 0; max-width: none; }
   .print-only { display: block; }
