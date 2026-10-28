@@ -36,6 +36,104 @@
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+  // ---------------------------------------------------------------------
+  // Examples: the rule sets that ship with the site, listed in
+  // examples/examples.json ([{ id, name, file }], paths from the site root).
+  // The Example dropdown in the toolbar switches between them, and
+  // ?example=<id> in the URL opens one directly (e.g. a link for students).
+  // Relative paths, so this works the same on GitHub Pages, on a fork and
+  // on localhost.
+  // ---------------------------------------------------------------------
+  const EXAMPLES_URL = 'examples/examples.json';
+  let examples = [];
+  let currentExample = ''; // id of the example loaded now; '' = the user's own file
+  let loadedSnapshot = ''; // the rules as loaded, to tell whether there are edits
+
+  async function loadExampleList() {
+    try {
+      const res = await fetch(EXAMPLES_URL, { cache: 'no-cache' });
+      const list = res.ok ? await res.json() : [];
+      return Array.isArray(list) ? list.filter((x) => x && x.id && x.name && x.file) : [];
+    } catch (e) {
+      return []; // no list (e.g. opened as a file): no dropdown, rules.json as before
+    }
+  }
+
+  // Fetches an example and turns it into rules: a .json file as it is, a
+  // BPMN through the importer (like Upload BPMN).
+  async function loadExample(entry) {
+    const res = await fetch(entry.file, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('Could not load ' + entry.file + ' (HTTP ' + res.status + ').');
+    const text = await res.text();
+    if (/\.(bpmn|xml)$/i.test(entry.file)) {
+      const { rules: imported, errors } = RaCBpmn.bpmnToRules(text, null);
+      if (errors.length) throw new Error('Could not load ' + entry.file + ':\n' + errors.join('\n'));
+      imported.meta.bpmnFile = entry.file;
+      return imported;
+    }
+    return JSON.parse(text);
+  }
+
+  // The example named in the URL (?example=alcohol), else the default one:
+  // the entry for rules.json.
+  function startingExample() {
+    const wanted = new URLSearchParams(location.search).get('example');
+    return examples.find((x) => x.id === wanted) || examples.find((x) => x.file === RULES_URL) || null;
+  }
+
+  // Keeps ?example= in the address bar in step, so the URL can be shared
+  // (the default example and the user's own file need none).
+  function setExampleInUrl(id) {
+    const url = new URL(location.href);
+    const entry = examples.find((x) => x.id === id);
+    if (entry && entry.file !== RULES_URL) url.searchParams.set('example', id);
+    else url.searchParams.delete('example');
+    history.replaceState(null, '', url);
+  }
+
+  function renderExamplePicker() {
+    const picker = $('#example-picker');
+    const select = $('#example-select');
+    if (!picker || !select) return;
+    picker.hidden = examples.length < 2;
+    select.innerHTML = '';
+    examples.forEach((x) => select.appendChild(el('option', { value: x.id, text: x.name })));
+    if (!currentExample) select.appendChild(el('option', { value: '', text: 'Your own file' }));
+    select.value = currentExample;
+  }
+
+  // Remembers what was just loaded (an example, a file or New).
+  function markLoaded(exampleId) {
+    currentExample = exampleId || '';
+    loadedSnapshot = JSON.stringify(rules);
+    setExampleInUrl(currentExample);
+    renderExamplePicker();
+  }
+
+  function initExamplePicker() {
+    const select = $('#example-select');
+    if (!select) return;
+    select.addEventListener('change', async () => {
+      const entry = examples.find((x) => x.id === select.value);
+      if (!entry) return;
+      if (JSON.stringify(rules) !== loadedSnapshot &&
+          !confirm('Load "' + entry.name + '"? Changes you haven\'t downloaded will be lost.')) {
+        select.value = currentExample;
+        return;
+      }
+      try {
+        rules = await loadExample(entry);
+      } catch (e) {
+        alert(e.message);
+        select.value = currentExample;
+        return;
+      }
+      bpmnName = /\.(bpmn|xml)$/i.test(entry.file) ? entry.file.split('/').pop() : null;
+      markLoaded(entry.id);
+      afterRulesChanged();
+    });
+  }
+
   async function loadRules() {
     let res;
     try {
@@ -90,19 +188,19 @@
   }
 
   // ---------------------------------------------------------------------
-  // Views: "Check a rule" (default — just the questionnaire) and "Author"
+  // Views: "User" (default — just the questionnaire) and "Developer"
   // (adds the toolbar and the Build / Test suite / Test results tabs). The view lives in
   // the URL hash, so #author can be bookmarked or shared.
   // ---------------------------------------------------------------------
   function isAuthorView() { return document.body.classList.contains('view-author'); }
 
   function applyView() {
-    const author = location.hash === '#author';
+    const author = location.hash === '#developer' || location.hash === '#author'; // #author: older links
     document.body.classList.toggle('view-author', author);
     document.body.classList.toggle('view-check', !author);
     $all('.view-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === (author ? 'author' : 'check'))));
     if (!author) {
-      // Only the questionnaire exists in the Check view.
+      // Only the questionnaire exists in the User view.
       setTabState('play');
     }
     if (rules) renderPlay(); // Play's error notice depends on the view
@@ -111,7 +209,7 @@
   function initViewSwitch() {
     $all('.view-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const hash = btn.dataset.view === 'author' ? '#author' : '';
+        const hash = btn.dataset.view === 'author' ? '#developer' : '';
         if (location.hash === hash) return;
         history.replaceState(null, '', hash || location.pathname + location.search);
         applyView();
@@ -211,10 +309,15 @@
   // New / Upload JSON / Upload BPMN replace the rules in this browser tab
   // only; the site itself always starts from rules.json. Download JSON saves
   // under that same name and layout, ready to replace the file in the repo.
+  // The name of the BPMN uploaded in this browser tab, reused by Download BPMN.
+  let bpmnName = null;
+
   function initFileControls() {
     $('#new-rules').addEventListener('click', () => {
       if (!confirm('Start a new, empty rules file? Unsaved changes will be lost.')) return;
+      bpmnName = null;
       rules = clone(EMPTY_RULES);
+      markLoaded('');
       afterRulesChanged();
     });
     onFileChosen('#upload-json', (file, text) => {
@@ -231,28 +334,41 @@
         alert('"' + file.name + '" is not a rules file: it must contain one JSON object with "meta", "attributes", "start" and "nodes".');
         return;
       }
+      bpmnName = null;
       rules = parsed;
+      markLoaded('');
       afterRulesChanged();
-      alert('Loaded "' + file.name + '". Check the Build tab for validation results.');
+      alert(loadedMessage(file.name));
     });
     // The BPMN is converted with js/bpmn.js, the same code as npm run
-    // import:bpmn. Texts the BPMN doesn't hold (supportive texts, short
-    // labels, intro, variables) are taken from the rules loaded now.
+    // import:bpmn. An upload replaces the rules loaded now entirely, so only
+    // the uploaded tree remains. A BPMN saved by Download BPMN brings back
+    // every text edited in the Build tab.
     onFileChosen('#upload-bpmn', (file, text) => {
-      const { rules: imported, errors, report } = RaCBpmn.bpmnToRules(text, rules);
+      const { rules: imported, errors } = RaCBpmn.bpmnToRules(text, null);
       if (errors.length) {
-        alert('Could not convert "' + file.name + '" — nothing was changed:\n\n' + errors.map((e) => '• ' + e).join('\n'));
+        alert('Could not load "' + file.name + '". Nothing was changed.\n\n' + errors.map((e) => '• ' + e).join('\n'));
         return;
       }
       imported.meta.bpmnFile = 'rules.bpmn'; // the repo keeps the BPMN under this name
+      bpmnName = file.name;
       rules = imported;
+      markLoaded('');
       afterRulesChanged();
-      alert('Imported "' + file.name + '": ' + RaCBpmn.importReport(rules, report, RaC.validateRules(rules)) +
-        '\n\nTo make it permanent: Download JSON and replace rules.json in the repo, save the BPMN as rules.bpmn' +
-        (file.name === 'rules.bpmn' ? '' : ' (it is "' + file.name + '" now)') + ', then run "npm run build:docs" and "npm test".');
+      alert(loadedMessage(file.name));
     });
     $('#download-json').addEventListener('click', () => {
       download(RULES_URL, RaC.formatRules(rules), 'application/json');
+    });
+    // The current rules, edits included, drawn as a BPMN diagram. Uploading
+    // the file again gives back exactly these rules.
+    $('#download-bpmn').addEventListener('click', () => {
+      if (RaC.validateRules(rules).errors.length) {
+        alert('The tree is not complete yet: fix the problems listed in the Build tab first. (Download JSON saves your work as it is.)');
+        return;
+      }
+      const name = bpmnName || (rules.meta && rules.meta.bpmnFile ? rules.meta.bpmnFile.split('/').pop() : slug((rules.meta && rules.meta.title) || 'rules') + '.bpmn');
+      download(name, RaCBpmn.rulesToBpmn(rules), 'application/xml');
     });
     // Generated at click time, so it always reflects the current edits.
     $('#download-csv').addEventListener('click', () => {
@@ -263,6 +379,14 @@
       const csv = RaC.testSuiteToCSV(RaC.generateTestSuite(rules), rules.attributes || []);
       download((rules.meta && rules.meta.title ? slug(rules.meta.title) : 'rules') + '-test-suite.csv', csv);
     });
+  }
+
+  // The message after an upload: what was loaded, and any problems.
+  function loadedMessage(fileName) {
+    const count = (type) => Object.values(rules.nodes || {}).filter((n) => n && n.type === type).length;
+    const { errors } = RaC.validateRules(rules);
+    return 'Loaded "' + fileName + '": ' + count('decision') + ' questions, ' + count('outcome') + ' outcomes.' +
+      (errors.length ? '\n\nTo fix in the Build tab:\n' + errors.map((e) => '• ' + e).join('\n') : '');
   }
 
   // Reads the file picked in a hidden <input type="file"> as text.
@@ -341,8 +465,11 @@
     const card = el('div', { class: 'card' });
     root.appendChild(card);
 
+    // The full title, when the page header shows a different short one;
+    // otherwise only for screen readers (the card's headings are h3).
     if (rules.meta && rules.meta.title) {
-      root.insertBefore(el('h2', { class: 'law-title', text: rules.meta.title }), card);
+      const differs = rules.meta.shortTitle && rules.meta.shortTitle !== rules.meta.title;
+      root.insertBefore(el('h2', { class: differs ? 'law-title' : 'visually-hidden', text: rules.meta.title }), card);
     }
 
     if (!playState.started) {
@@ -357,8 +484,8 @@
 
     // "of up to": the longest possible run of questions from here, since
     // the actual count depends on the answers still to come.
-    const asked = playState.history.length;
-    card.appendChild(el('div', { class: 'progress-note', text: 'Question ' + (asked + 1) + ' of up to ' + (asked + remainingQuestions(playState.currentId)) }));
+    const asked = playState.history.filter((h) => !h.auto).length;
+    card.appendChild(el('div', { class: 'progress-note', text: 'Question ' + (asked + 1) + ' of up to ' + (asked + remainingQuestions(playState.currentId, Object.keys(playState.facts))) }));
     card.appendChild(el('h3', { class: 'question', text: node.question || node.fact }));
     const supportive = userText(node.supportiveText);
     if (supportive) card.appendChild(el('p', { class: 'supportive', text: supportive }));
@@ -389,9 +516,10 @@
         const branch = await RaC.evaluateCondition(node, Object.assign({}, playState.facts, { [node.fact]: value }));
         playState.facts[node.fact] = value;
         playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, answer, question: node.question || node.fact, supportiveText: node.supportiveText, citation: node.citation,
-          warning: node.warnings && node.warnings[String(branch)] });
+          warning: node.warnings && node.warnings[String(branch)], check: engineCheck(node, branch) });
         delete playState.previousAnswers[playState.currentId];
         playState.currentId = branch ? node.true : node.false;
+        await answerKnownQuestions();
         playFocus = true;
         renderPlay();
       } catch (e) {
@@ -415,17 +543,18 @@
         inputWrap.appendChild(el('button', { class: 'btn btn-choice', text: String(v), onclick: () => commit(v, String(v)) }));
       });
     } else if (attribute.type === 'number') {
-      const input = el('input', { type: 'number', class: 'text-input', placeholder: attribute.label, 'aria-label': node.question || attribute.label });
+      const input = el('input', { type: 'number', class: 'text-input', placeholder: typeof attribute.example === 'number' ? 'e.g. ' + attribute.example : '', 'aria-label': node.question || attribute.label });
       if (typeof attribute.min === 'number') input.min = attribute.min;
       if (typeof attribute.max === 'number') input.max = attribute.max;
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
-      btn.addEventListener('click', () => commit(input.value === '' ? undefined : Number(input.value), input.value));
+      btn.addEventListener('click', () => commit(input.value === '' ? undefined : Number(input.value), input.value + (attribute.unit ? ' ' + attribute.unit : '')));
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
       inputWrap.appendChild(input);
+      if (attribute.unit) inputWrap.appendChild(el('span', { class: 'input-unit', text: attribute.unit }));
       inputWrap.appendChild(btn);
       input.focus();
     } else {
-      const input = el('input', { type: 'text', class: 'text-input', placeholder: attribute.label, 'aria-label': node.question || attribute.label });
+      const input = el('input', { type: 'text', class: 'text-input', 'aria-label': node.question || attribute.label });
       const btn = el('button', { class: 'btn btn-primary', text: 'Next' });
       btn.addEventListener('click', () => commit(input.value, input.value));
       inputWrap.appendChild(input);
@@ -461,6 +590,46 @@
     return { started, currentId: rules.start, facts: {}, history: [], previousAnswers: {} };
   }
 
+  // A question whose variable is already answered (e.g. "18 or older?"
+  // after the age was given) is not asked again: its condition is checked
+  // with the earlier answer and the questionnaire moves on. Such steps are
+  // marked `auto` in the history and shown on the result without "Change".
+  async function answerKnownQuestions() {
+    let node = rules.nodes[playState.currentId];
+    while (node && node.type === 'decision' && node.fact in playState.facts) {
+      const value = playState.facts[node.fact];
+      const branch = await RaC.evaluateCondition(node, playState.facts);
+      const attribute = (rules.attributes || []).find((a) => a.id === node.fact);
+      playState.history.push({ nodeId: playState.currentId, factId: node.fact, value, auto: true,
+        answer: (branch ? 'Yes' : 'No') + ' (from your answer: ' + valueText(attribute, value) + ')',
+        question: node.question || node.fact, supportiveText: node.supportiveText, citation: node.citation,
+        warning: node.warnings && node.warnings[String(branch)], check: engineCheck(node, branch) });
+      playState.currentId = branch ? node.true : node.false;
+      node = rules.nodes[playState.currentId];
+    }
+  }
+
+  // An outcome description without the label it starts with, which is
+  // already shown above it: "Folköl only – can buy folköl …" -> "Can buy folköl …".
+  function withoutLabel(description, label) {
+    if (!description || !label || !description.toLowerCase().startsWith(label.toLowerCase())) return description;
+    const rest = description.slice(label.length).replace(/^[\s–—:;,.-]+/, '');
+    return rest.length > 1 ? rest.charAt(0).toUpperCase() + rest.slice(1) : '';
+  }
+
+  // The rule json-rules-engine ran at a question and what it returned, for
+  // the result: e.g. "age ≥ 20 → false".
+  function engineCheck(node, branch) {
+    const value = Array.isArray(node.value) ? '[' + node.value.join(', ') + ']' : String(node.value);
+    return node.fact + ' ' + (OP_TEXT[node.operator] || node.operator) + ' ' + value + ' → ' + branch;
+  }
+
+  // An answer as text: Yes / No for yes/no variables, else the value and its unit.
+  function valueText(attribute, value) {
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value) + (attribute && attribute.unit ? ' ' + attribute.unit : '');
+  }
+
   // Return to the question at history[index], dropping it and every later
   // answer. The dropped answers are remembered as highlights, so if the
   // path stays the same the user only has to re-confirm them.
@@ -491,7 +660,7 @@
       card.appendChild(el('h3', { class: 'card-heading', text: 'Who it is for' }));
       card.appendChild(el('p', { class: 'intro-text', text: audience }));
     }
-    card.appendChild(el('p', { class: 'intro-text', text: 'You will answer up to ' + remainingQuestions(rules.start) + ' questions. Each one shows the part of the law it is based on.' }));
+    card.appendChild(el('p', { class: 'intro-text', text: 'You will answer up to ' + remainingQuestions(rules.start, []) + ' questions. Each one shows the part of the law it is based on.' }));
     const source = legalSourceLine(null);
     if (source) card.appendChild(source);
     if (disclaimer) card.appendChild(el('div', { class: 'notice notice-info intro-disclaimer', text: disclaimer }));
@@ -531,7 +700,8 @@
 
     card.appendChild(el('div', { class: 'outcome-badge', text: node.label || playState.currentId }));
     const description = userText(node.description);
-    if (description) card.appendChild(el('p', { text: description }));
+    const shown = withoutLabel(description, node.label);
+    if (shown) card.appendChild(el('p', { text: shown }));
     // Terms in the outcome itself (e.g. "compulsory liquidation"). Not
     // printed: a collapsed list would only print its summary line.
     const outcomeTerms = glossaryFor([node.label, description].join(' '), 'result');
@@ -559,9 +729,10 @@
     playState.history.forEach((h, i) => {
       const li = el('li', {}, [
         el('span', { class: 'answers-q', text: h.question }),
-        el('strong', { class: 'answers-a', text: h.answer }),
+        el('strong', { class: 'answers-a', text: h.answer })
+      ].concat(h.auto ? [] : [
         el('button', { class: 'btn btn-link answers-change no-print', text: 'Change', 'aria-label': 'Change answer to question ' + (i + 1), onclick: () => goBackTo(i) })
-      ]);
+      ]));
       const rule = userText(h.supportiveText);
       if (rule) li.appendChild(el('p', { class: 'answers-rule', text: rule }));
       const source = legalSourceLine(h.citation);
@@ -571,10 +742,13 @@
     card.appendChild(answers);
 
     const outcomePath = playState.history.map((h) => h.nodeId).concat([playState.currentId]);
-    // The node IDs match the decision tree, rules.json and the test suite.
+    // Each step as the rule json-rules-engine ran, with the node IDs used in
+    // the Build tab, rules.json and the test suite.
     card.appendChild(el('div', {}, [
-      el('h3', { class: 'card-heading', text: 'Decision path (node IDs)' }),
-      el('div', { class: 'path-trace', text: outcomePath.join('  →  ') })
+      el('h3', { class: 'card-heading', text: 'Checked by json-rules-engine' }),
+      el('ol', { class: 'path-trace engine-trace' }, playState.history.map((h) =>
+        el('li', {}, [el('span', { class: 'trace-id', text: h.nodeId }), h.check || ''])
+      ).concat([el('li', {}, [el('span', { class: 'trace-id', text: 'Result' }), playState.currentId])]))
     ]));
     // Every path through the tree is one case in the test suite; this opens
     // the Test results tab at the case with the same path.
@@ -593,17 +767,18 @@
     ]));
   }
 
-  // Longest run of decision nodes from `id` to any outcome (rules are
-  // validated acyclic before play starts).
-  function remainingQuestions(id) {
-    const memo = {};
-    (function walk(nid) {
-      if (nid in memo) return memo[nid];
+  // The most questions still to be asked from `id` to any outcome. A
+  // question whose variable is already answered (`known`, or earlier on the
+  // same path) isn't asked again, so it doesn't count. Rules are validated
+  // acyclic before play starts.
+  function remainingQuestions(id, known) {
+    return (function walk(nid, answered) {
       const n = rules.nodes[nid];
-      memo[nid] = !n || n.type !== 'decision' ? 0 : 1 + Math.max(walk(n.true), walk(n.false));
-      return memo[nid];
-    })(id);
-    return memo[id];
+      if (!n || n.type !== 'decision') return 0;
+      if (answered.has(n.fact)) return Math.max(walk(n.true, answered), walk(n.false, answered));
+      const next = new Set(answered).add(n.fact);
+      return 1 + Math.max(walk(n.true, next), walk(n.false, next));
+    })(id, new Set(known));
   }
 
   // Authors leave "TODO (stödtext)" placeholders in texts still to be
@@ -654,17 +829,14 @@
     renderJsonPreview(); // also renders the validation
   }
 
-  // Top of the Build tab: for rules imported from a BPMN, which parts come
-  // from the BPMN and which are only edited here.
+  // Top of the Build tab: edits live in this browser tab until downloaded.
   function renderBpmnNote() {
     const root = $('#bpmn-note');
     root.innerHTML = '';
-    const file = rules.meta && rules.meta.bpmnFile;
-    if (!file) return;
     root.appendChild(el('div', { class: 'notice notice-info' }, [
-      el('strong', { text: 'Imported from ' + file + '. ' }),
-      'Fields marked “from BPMN” (questions with operator and value, citations, Yes/No targets, outcome descriptions and the start node) come from the BPMN: change them there, or the next import overwrites them. ' +
-      'Everything else — supportive texts, outcome labels, variables, the glossary and the intro texts — is only edited here. Download JSON saves it.'
+      'Changes here apply at once in Play and the tests. To keep them, use ',
+      el('strong', { text: 'Download JSON' }), ' or ', el('strong', { text: 'Download BPMN' }),
+      ': reloading the page starts over from the saved rules.'
     ]));
   }
 
@@ -855,10 +1027,10 @@
     //   row 5: Supportive text (full width)
     //   row 6: Legal citation (full width)
     const grid = el('div', { class: 'node-grid' });
-    grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide'), true));
+    grid.appendChild(field('Question', input(node.question || '', (v) => { node.question = v; renderJsonPreview(); }, null, 'wide')));
     grid.appendChild(field('Variable', select(attrOptions, node.fact, (v) => { node.fact = v; refresh(); }, missingText(node.fact))));
-    grid.appendChild(field('Operator', select(RaC.OPERATORS, node.operator, (v) => { node.operator = v; refresh(); }), true));
-    grid.appendChild(field('Value', valueControl(node), true));
+    grid.appendChild(field('Operator', select(RaC.OPERATORS, node.operator, (v) => { node.operator = v; refresh(); }, null, OP_NAMES)));
+    grid.appendChild(field('Value', valueControl(node)));
     const attr = (rules.attributes || []).find((a) => a.id === node.fact);
     const yesNoToggle = el('input', { type: 'checkbox' });
     yesNoToggle.checked = node.inputMode === 'yesno';
@@ -870,8 +1042,10 @@
     ));
     branchFields(id, node, nodeIds).forEach((f) => grid.appendChild(f));
     warningFields(node).forEach((f) => grid.appendChild(f));
-    grid.appendChild(field('Supportive text', input(node.supportiveText || '', (v) => { node.supportiveText = v; renderJsonPreview(); }, null, 'wide')));
-    grid.appendChild(field('Legal citation', input(node.citation || '', (v) => { node.citation = v; renderJsonPreview(); }, null, 'wide'), true));
+    const help = input(node.supportiveText || '', (v) => { node.supportiveText = v; renderJsonPreview(); }, null, 'wide');
+    help.placeholder = 'Optional: a short explanation shown under the question';
+    grid.appendChild(field('Supportive text', help));
+    grid.appendChild(field('Legal citation', input(node.citation || '', (v) => { node.citation = v; renderJsonPreview(); }, null, 'wide')));
     card.appendChild(grid);
     return card;
   }
@@ -890,7 +1064,7 @@
 
     function branchField(labelText, key) {
       const wrap = el('label', { class: 'field branch-target' });
-      wrap.appendChild(labelWithBadge(labelText, true));
+      wrap.appendChild(el('span', { text: labelText }));
       const s = select(targets, node[key], (v) => { node[key] = v; renderJsonPreview(); }, missingText(node[key]));
       wrap.appendChild(s);
       const hint = el('div', { class: 'branch-hint', text: '↳ ' + targetPreview(node[key]) });
@@ -907,7 +1081,7 @@
   function warningFields(node) {
     return ['true', 'false'].map((key) => {
       const wrap = el('label', { class: 'field branch-target' });
-      wrap.appendChild(labelWithBadge('Defect warning if ' + key.toUpperCase() + ' (shown on the result)', true));
+      wrap.appendChild(el('span', { text: 'Defect warning if ' + key.toUpperCase() + ' (shown on the result)' }));
       wrap.appendChild(input((node.warnings && node.warnings[key]) || '', (v) => {
         node.warnings = Object.assign({}, node.warnings, { [key]: v });
         if (!v.trim()) delete node.warnings[key];
@@ -954,7 +1128,7 @@
     ]));
     const grid = el('div', { class: 'node-grid' });
     grid.appendChild(field('Label', input(node.label || '', (v) => { node.label = v; renderJsonPreview(); }, null, 'wide')));
-    grid.appendChild(field('Description', input(node.description || '', (v) => { node.description = v; renderJsonPreview(); }, null, 'wide'), true));
+    grid.appendChild(field('Description', input(node.description || '', (v) => { node.description = v; renderJsonPreview(); }, null, 'wide')));
     card.appendChild(grid);
     return card;
   }
@@ -967,27 +1141,14 @@
     if (v !== '' && !Number.isNaN(Number(v))) return Number(v);
     return v;
   }
-  // `fromBpmn` marks a field the BPMN import fills (see bpmnBadge).
-  function field(labelText, control, fromBpmn) {
+  function field(labelText, control) {
     // A "wide" control (class set by input(...,'wide')) needs the *field*
     // itself — the actual grid item — to span the full grid width, not just
     // the control inside it, otherwise the grid never sees it as full-width.
     const isWide = control.classList && control.classList.contains('wide');
-    return el('label', { class: 'field' + (isWide ? ' wide' : '') }, [labelWithBadge(labelText, fromBpmn), control]);
+    return el('label', { class: 'field' + (isWide ? ' wide' : '') }, [el('span', { text: labelText }), control]);
   }
 
-  // When the rules were imported from a BPMN (meta.bpmnFile), the fields the
-  // import fills get a "from BPMN" mark: edits to them belong in the BPMN,
-  // because the next import overwrites them.
-  function bpmnBadge() {
-    const file = rules.meta && rules.meta.bpmnFile;
-    if (!file) return null;
-    return el('span', { class: 'bpmn-badge', title: 'Comes from ' + file + '. Change it there, or the next BPMN import overwrites it.', text: 'from BPMN' });
-  }
-  function labelWithBadge(text, fromBpmn) {
-    const badge = fromBpmn ? bpmnBadge() : null;
-    return el('span', {}, [text].concat(badge ? [badge] : []));
-  }
   function textArea(value, onChange, rows) {
     const t = el('textarea', { class: 'text-input', rows: String(rows || 3) });
     t.value = value;
@@ -1002,7 +1163,7 @@
   // A dropdown bound to `value`. If the value isn't one of the options, a
   // disabled first entry shows `missingText` (e.g. "missing: Q9"), so the
   // dropdown never pretends a different option is chosen.
-  function select(options, value, onChange, missingText) {
+  function select(options, value, onChange, missingText, names) {
     const s = el('select', { class: 'text-input' });
     if (!options.includes(value) && missingText) {
       const opt = el('option', { value: '', text: missingText });
@@ -1011,7 +1172,7 @@
       s.appendChild(opt);
     }
     options.forEach((o) => {
-      const opt = el('option', { value: o, text: o });
+      const opt = el('option', { value: o, text: (names && names[o]) || o });
       if (o === value) opt.selected = true;
       s.appendChild(opt);
     });
@@ -1043,7 +1204,7 @@
     // A new file has no start yet, so its first node becomes the start. A
     // start that points to a deleted node is kept and shown as missing.
     if (!rules.start && nodeIds.length) { rules.start = nodeIds[0]; renderJsonPreview(); }
-    root.appendChild(el('label', { for: 'start-node' }, ['Start node: '].concat(bpmnBadge() ? [bpmnBadge()] : [])));
+    root.appendChild(el('label', { for: 'start-node' }, ['Start node: ']));
     const start = select(nodeIds, rules.start, (v) => { rules.start = v; renderJsonPreview(); }, missingText(rules.start));
     start.id = 'start-node';
     root.appendChild(start);
@@ -1082,19 +1243,19 @@
   // Flowchart of the whole tree (Build tab). Mermaid does the layout — the
   // tree has long edges that skip levels (e.g. G8 → G12), which a naive
   // layered layout would draw straight through other boxes. It's loaded
-  // from the CDN only when the Build tab is first shown, so the Check view
+  // from the CDN only when the Build tab is first shown, so the User view
   // never pays for it.
   // ---------------------------------------------------------------------
   const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
   let mermaidPromise = null;
   let flowchartTimer = null;
   let flowchartRenderCount = 0;
-  // Default zoomed-in further than 1:1 so the node text is readable right
-  // away on a tree this size; Reset returns to this, not to a neutral 1x.
-  const FLOWCHART_DEFAULT_SCALE = 1.6;
+  // The tree starts fitted to the box's width (never above 1.3x, so a small
+  // tree isn't blown up); Reset returns to that view.
   const FLOWCHART_MIN_SCALE = 0.3;
   const FLOWCHART_MAX_SCALE = 6;
-  let flowchartView = { scale: FLOWCHART_DEFAULT_SCALE, x: 0, y: 0 };
+  let flowchartFit = { scale: 1, x: 0, y: 0 };
+  let flowchartView = { scale: 1, x: 0, y: 0 };
 
   function clampFlowchartScale(s) { return Math.min(FLOWCHART_MAX_SCALE, Math.max(FLOWCHART_MIN_SCALE, s)); }
 
@@ -1110,7 +1271,29 @@
   }
 
   function resetFlowchartView() {
-    flowchartView = { scale: FLOWCHART_DEFAULT_SCALE, x: 0, y: 0 };
+    flowchartView = { scale: flowchartFit.scale, x: flowchartFit.x, y: flowchartFit.y };
+    applyFlowchartTransform();
+  }
+
+  // Draws the SVG at its own size (Mermaid's width="100%" shrinks it to a
+  // default 300px inside the pan/zoom box), fits it to the box's width and
+  // makes the box as tall as the fitted tree, up to 70% of the window.
+  function fitFlowchart() {
+    const root = $('#flowchart');
+    const svg = root && $('.flowchart-viewport svg', root);
+    const box = svg && svg.viewBox && svg.viewBox.baseVal;
+    if (!box || !box.width) return;
+    svg.setAttribute('width', box.width);
+    svg.setAttribute('height', box.height);
+    svg.style.maxWidth = 'none';
+    const available = root.clientWidth - 24 - 48; // padding, zoom buttons
+    if (available <= 0) return; // hidden: fitted when the Build tab opens
+    const scale = clampFlowchartScale(Math.min(1.3, available / box.width));
+    // An edit that keeps the tree's size (e.g. a text) keeps the user's zoom.
+    const sameSize = flowchartFit.width === box.width && flowchartFit.height === box.height;
+    flowchartFit = { scale, x: Math.max(0, (available - box.width * scale) / 2), y: 0, width: box.width, height: box.height };
+    if (!sameSize) flowchartView = { scale: flowchartFit.scale, x: flowchartFit.x, y: flowchartFit.y };
+    root.style.height = Math.min(box.height * scale + 24, window.innerHeight * 0.7) + 'px';
     applyFlowchartTransform();
   }
 
@@ -1180,21 +1363,48 @@
     return short.replace(/"/g, '#quot;').replace(/</g, '#lt;').replace(/>/g, '#gt;');
   }
 
+  // Arrow labels worked out from each question's condition, so any
+  // imported tree reads naturally: Yes / No for a yes/no question, the limit
+  // for a number ("≥ 20 years" / "< 20 years"), the value for a choice
+  // ("= Christmas" / "≠ Christmas").
+  const OP_TEXT = { equal: '=', notEqual: '≠', greaterThanInclusive: '≥', greaterThan: '>', lessThanInclusive: '≤', lessThan: '<', in: 'one of', notIn: 'not one of' };
+  // The operators as the Build tab lists them; the value stays the
+  // json-rules-engine name.
+  const OP_NAMES = { equal: '= equal to', notEqual: '≠ not equal to', lessThan: '< less than', lessThanInclusive: '≤ at most',
+    greaterThan: '> more than', greaterThanInclusive: '≥ at least', in: 'one of', notIn: 'not one of' };
+  const OP_OPPOSITE = { equal: 'notEqual', notEqual: 'equal', greaterThanInclusive: 'lessThan', lessThan: 'greaterThanInclusive',
+    greaterThan: 'lessThanInclusive', lessThanInclusive: 'greaterThan', in: 'notIn', notIn: 'in' };
+  function branchLabels(node) {
+    const attribute = (rules.attributes || []).find((a) => a.id === node.fact);
+    const yesNo = node.inputMode === 'yesno' || (typeof node.value === 'boolean' && (node.operator === 'equal' || node.operator === 'notEqual'));
+    if (yesNo) {
+      const trueIsYes = node.inputMode === 'yesno' || (node.operator === 'equal') === node.value;
+      return { true: trueIsYes ? 'Yes' : 'No', false: trueIsYes ? 'No' : 'Yes' };
+    }
+    const text = (op) => (OP_TEXT[op] || op || '') + ' ' + (Array.isArray(node.value) ? node.value.join(', ') : String(node.value)) +
+      (attribute && attribute.unit ? ' ' + attribute.unit : '');
+    return { true: text(node.operator), false: OP_OPPOSITE[node.operator] ? text(OP_OPPOSITE[node.operator]) : 'otherwise' };
+  }
+
   // Mermaid source for the tree: one box per node, one labelled arrow per branch.
   function flowchartSource(keyOf) {
     const lines = ['flowchart TD'];
+    // A short question ID ("Q1") is shown to match the node list; long
+    // generated ones ("Gateway_1p4tdab") and outcome IDs would only clutter.
     Object.entries(rules.nodes || {}).forEach(([id, node]) => {
       const k = keyOf[id];
       if (node.type === 'decision') {
-        lines.push('  ' + k + '["' + mermaidLabel(id + ': ' + (node.question || node.fact || '')) + '"]:::decision');
+        const text = node.question || node.fact || id;
+        lines.push('  ' + k + '["' + mermaidLabel(/^[\w.-]{1,6}$/.test(id) ? id + ': ' + text : text) + '"]:::decision');
       } else {
-        lines.push('  ' + k + '(["' + mermaidLabel(id + ': ' + (node.label || '')) + '"]):::outcome');
+        lines.push('  ' + k + '(["' + mermaidLabel(node.label || id) + '"]):::outcome');
       }
     });
     Object.entries(rules.nodes || {}).forEach(([id, node]) => {
       if (node.type !== 'decision') return;
+      const labels = branchLabels(node);
       ['true', 'false'].forEach((branch) => {
-        if (keyOf[node[branch]]) lines.push('  ' + keyOf[id] + ' -->|' + branch + '| ' + keyOf[node[branch]]);
+        if (keyOf[node[branch]]) lines.push('  ' + keyOf[id] + ' -->|"' + mermaidLabel(labels[branch]) + '"| ' + keyOf[node[branch]]);
       });
     });
     if (keyOf[rules.start]) lines.push('  class ' + keyOf[rules.start] + ' start');
@@ -1263,7 +1473,7 @@
       } }),
     ]);
     root.appendChild(controls);
-    applyFlowchartTransform();
+    fitFlowchart();
 
     // Mermaid gives each node group an id like "…-flowchart-n3-0".
     $all('g.node', root).forEach((g) => {
@@ -1273,7 +1483,8 @@
       g.classList.add('fc-node-link');
       g.setAttribute('tabindex', '0');
       g.setAttribute('role', 'link');
-      g.setAttribute('aria-label', 'Edit node ' + nodeId);
+      // The name starts with the box's own text, as screen-reader users hear it.
+      g.setAttribute('aria-label', g.textContent.replace(/\s+/g, ' ').trim() + ' (edit node ' + nodeId + ')');
       g.addEventListener('click', () => jumpToNodeCard(nodeId));
       g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpToNodeCard(nodeId); } });
     });
@@ -1303,7 +1514,7 @@
     }
 
     root.appendChild(el('div', { class: 'notice notice-info' }, [
-      'Draft — review before treating as final test design. This is the same table as Download CSV. For one readable card per case with its result, open ',
+      'This is the same table as Download CSV. For one readable card per case with its result, open ',
       el('button', { class: 'btn-link inline-link', text: 'Test results', onclick: () => showTab('results') }),
       '.'
     ]));
@@ -1386,12 +1597,12 @@
   let resultsRun = 0; // id of the newest run; a slower older run is dropped
   let resultsReturnView = null; // 'check' / 'author' when opened from a Play result
 
-  // Opened from the Play result: show the Author view's Test results tab at
+  // Opened from the Play result: show the Developer view's Test results tab at
   // the case with the same path and answers, remembering where to go back to.
   function openResultsAtPath(path, facts) {
     resultsReturnView = isAuthorView() ? 'author' : 'check';
     if (!isAuthorView()) {
-      history.replaceState(null, '', '#author');
+      history.replaceState(null, '', '#developer');
       applyView();
     }
     showTab('results', { path, facts });
@@ -1402,7 +1613,7 @@
     resultsReturnView = null;
     if (view === 'check') {
       history.replaceState(null, '', location.pathname + location.search);
-      applyView(); // the Check view always shows Play, with the result kept
+      applyView(); // the User view always shows Play, with the result kept
     } else {
       showTab('play');
     }
@@ -1577,13 +1788,21 @@
   function caseSteps(r) {
     const warnings = {};
     (r.actual.warnings || []).forEach((w) => { warnings[w.nodeId] = userText(w.warning); });
-    return r.expected.path.slice(0, -1).map((id) => {
+    const path = r.expected.path;
+    return path.slice(0, -1).map((id, i) => {
       const node = rules.nodes[id] || {};
       const attribute = (rules.attributes || []).find((a) => a.id === node.fact);
+      // A number answer also shows the condition it was checked against,
+      // e.g. "19 years (≥ 20? No)".
+      const value = r.inputs[node.fact];
+      const symbol = { greaterThanInclusive: '≥', greaterThan: '>', lessThanInclusive: '≤', lessThan: '<', equal: '=', notEqual: '≠' }[node.operator];
+      const answer = attribute && attribute.type === 'number' && value !== undefined && symbol
+        ? valueText(attribute, value) + ' (' + symbol + ' ' + node.value + '? ' + (path[i + 1] === node.true ? 'Yes' : 'No') + ')'
+        : answerText(attribute, value);
       return {
         id,
         question: node.question || (attribute && attribute.label) || node.fact || id,
-        answer: answerText(attribute, r.inputs[node.fact]),
+        answer,
         warning: warnings[id] || ''
       };
     });
@@ -1701,18 +1920,25 @@
     initThemeToggle();
     initFlowchartPanZoom();
     initEngineBadge();
+    examples = await loadExampleList();
+    const first = startingExample();
     try {
-      rules = await loadRules();
+      // rules.json as always, or the example asked for in the URL.
+      rules = first && first.file !== RULES_URL ? await loadExample(first) : await loadRules();
+      if (first && /\.(bpmn|xml)$/i.test(first.file)) bpmnName = first.file.split('/').pop();
     } catch (e) {
       $('#play-root').appendChild(el('div', { class: 'notice notice-error', text: e.message }));
-      $('.tabs').hidden = true;
+      $('.tabbar').hidden = true;
       $('#download-json').disabled = true;
       $('#download-csv').disabled = true;
+      $('#download-bpmn').disabled = true;
       return;
     }
     applyHeader();
     initTabs();
     initFileControls();
+    initExamplePicker();
+    markLoaded(first ? first.id : '');
     renderPlay();
     renderBuild();
     renderTests();

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const RaC = require('../js/logic.js');
 const { staleFiles } = require('../scripts/build-docs.js');
-const { bpmnToRules } = require('../js/bpmn.js');
+const { bpmnToRules, rulesToBpmn } = require('../js/bpmn.js');
 
 const root = path.join(__dirname, '..');
 const rules = JSON.parse(fs.readFileSync(path.join(root, 'rules.json'), 'utf8'));
@@ -141,6 +141,86 @@ async function main() {
     const result = await RaC.decide(rules, row.inputs);
     assert(result.warnings.some((w) => w.nodeId === warnedId && w.warning === warnedNode.warnings.false),
       'decide() reports the defect warning at ' + warnedId + ' ("' + warnedNode.warnings.false + '")');
+  }
+
+  // 12) The example BPMN (examples/alcohol-purchase-eligibility.bpmn):
+  //     number questions, a shared variable, rule-set texts from a text
+  //     annotation, and boundary tests at each age limit.
+  const example = bpmnToRules(fs.readFileSync(path.join(root, 'examples/alcohol-purchase-eligibility.bpmn'), 'utf8'), null);
+  assert(example.errors.length === 0 && RaC.validateRules(example.rules).errors.length === 0, 'the example BPMN imports and validates');
+  const age = example.rules.attributes.find((a) => a.id === 'age');
+  assert(age && age.type === 'number' && example.rules.attributes.length === 2,
+    'the example gets one number variable for the age and one shared yes/no variable');
+  assert(/riksdagen\.se/.test(example.rules.meta.lawUrl || '') && example.rules.meta.intro,
+    'the example takes its law link and texts from the text annotation');
+  const exampleSuite = RaC.generateTestSuite(example.rules);
+  const boundaries = exampleSuite.filter((r) => r.edge_class === 'boundary').map((r) => r.inputs.age).sort((a, b) => a - b);
+  let examplePass = 0;
+  for (const row of exampleSuite) if ((await RaC.runTestRow(example.rules, row)).pass) examplePass++;
+  assert(JSON.stringify(boundaries) === '[17,18,19,20]' && examplePass === exampleSuite.length,
+    'the example has boundary tests at ages 17, 18, 19 and 20, and all ' + exampleSuite.length + ' cases pass');
+
+  // 13) Arrows may be written "Yes, …"; an unnamed end event takes the text
+  //     of the arrow leading into it; an unclear arrow gives a plain message.
+  const tiny = (yes, no) => '<definitions><process id="P"><startEvent id="S"/><exclusiveGateway id="G" name="Ok?"/>' +
+    '<endEvent id="E1" name="Fine"/><endEvent id="E2"/>' +
+    '<sequenceFlow id="f0" sourceRef="S" targetRef="G"/><sequenceFlow id="f1" name="' + yes + '" sourceRef="G" targetRef="E1"/>' +
+    '<sequenceFlow id="f2" name="' + no + '" sourceRef="G" targetRef="E2"/></process></definitions>';
+  const commas = bpmnToRules(tiny('Yes, all good', 'No, NOT FINE'), null);
+  assert(commas.errors.length === 0 && commas.rules.nodes.E2.label === 'NOT FINE',
+    'arrows written "Yes, …" import, and an unnamed end event is named after its arrow');
+  const unclear = bpmnToRules(tiny('Maybe', 'No'), null);
+  assert(unclear.errors.some((e) => /must start with Yes or No/.test(e)), 'an arrow without Yes or No gives a plain error message');
+
+  // 14) Download BPMN (rulesToBpmn) draws the current rules as a BPMN that
+  //     uploads again as exactly the same rules, Build-tab edits included;
+  //     what the diagram shows still wins over the copy saved inside it.
+  // Same content (key order aside), apart from the name of the BPMN file.
+  const canonical = (v) => (Array.isArray(v) ? '[' + v.map(canonical).join(',') + ']'
+    : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canonical(v[k])).join(',') + '}'
+    : JSON.stringify(v));
+  const sameRules = (a, b) => {
+    const plain = (r) => { const c = copy(r); if (c.meta) delete c.meta.bpmnFile; return canonical(c); };
+    return plain(a) === plain(b);
+  };
+  const edited = copy(example.rules);
+  edited.attributes.find((a) => a.id === 'age').max = 150;
+  delete edited.meta.intro;
+  edited.nodes.Q2.supportiveText = 'Look for clear signs, such as slurred speech.';
+  edited.nodes.Q1.warnings = { false: 'Check the ID.' };
+  // A tree built in the Build tab: a list variable and an "equal false" test.
+  const built = {
+    meta: { title: 'Built by hand' },
+    attributes: [{ id: 'season', label: 'Season', type: 'enum', values: ['summer', 'winter'], example: 'summer' },
+      { id: 'member', label: 'Member', type: 'boolean', example: true }],
+    start: 'A',
+    nodes: {
+      A: { type: 'decision', question: 'Which season is it?', fact: 'season', operator: 'equal', value: 'winter', true: 'B', false: 'Open' },
+      B: { type: 'decision', question: 'Is the person a non-member?', fact: 'member', operator: 'equal', value: false, true: 'Closed', false: 'Open' },
+      Open: { type: 'outcome', label: 'Open' },
+      Closed: { type: 'outcome', label: 'Closed', description: 'Closed for non-members in winter.' },
+    },
+  };
+  for (const [name, r] of [['rules.json', rules], ['the edited example', edited], ['a tree built by hand', built]]) {
+    const back = bpmnToRules(rulesToBpmn(r), null);
+    assert(back.errors.length === 0 && sameRules(r, back.rules), 'Download BPMN of ' + name + ' uploads again as exactly the same rules');
+  }
+  const renamed = bpmnToRules(rulesToBpmn(edited).replace('name="Is the person 18 or older?', 'name="Is the person at least 18?'), null).rules;
+  assert(renamed.nodes.Q3.question === 'Is the person at least 18?' && renamed.attributes.find((a) => a.id === 'age').max === 150,
+    'a question renamed in the downloaded BPMN is renamed in the rules; the rest stays as saved');
+
+  // 15) The Example dropdown (examples/examples.json): every file in
+  //     examples/ is listed, every entry loads and validates, IDs are unique.
+  const listed = JSON.parse(fs.readFileSync(path.join(root, 'examples/examples.json'), 'utf8'));
+  const inFolder = fs.readdirSync(path.join(root, 'examples')).filter((f) => f !== 'examples.json').map((f) => 'examples/' + f);
+  const unlisted = inFolder.filter((f) => !listed.some((x) => x.file === f));
+  assert(unlisted.length === 0, 'every file in examples/ is in examples/examples.json' + (unlisted.length ? ' (add: ' + unlisted.join(', ') + ')' : ''));
+  assert(new Set(listed.map((x) => x.id)).size === listed.length && listed.every((x) => x.id && x.name && x.file),
+    'examples/examples.json: every entry has a unique id, a name and a file');
+  for (const x of listed) {
+    const text = fs.readFileSync(path.join(root, x.file), 'utf8');
+    const loaded = /\.(bpmn|xml)$/i.test(x.file) ? bpmnToRules(text, null) : { rules: JSON.parse(text), errors: [] };
+    assert(loaded.errors.length === 0 && RaC.validateRules(loaded.rules).errors.length === 0, 'the example "' + x.name + '" (' + x.file + ') loads and validates');
   }
 
   console.log('\nALL CHECKS PASSED');

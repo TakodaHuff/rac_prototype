@@ -3,7 +3,7 @@
     "title": "Control balance sheet and duty to liquidate (Ch. 25 ABL)",
     "shortTitle": "Control Balance Sheet Check",
     "subtitle": "Chapter 25 Swedish Companies Act (aktiebolagslagen)",
-    "description": "Imported from rules.bpmn with npm run import:bpmn. Node IDs are identical to that BPMN file's gateway/end-event IDs, and every true/false target below follows its sequenceFlow sourceRef/targetRef exactly.",
+    "description": "The control balance sheet rules of Chapter 25, Secs. 13–17 of the Swedish Companies Act as a decision tree. Drawn in rules.bpmn and imported with npm run import:bpmn.",
     "legalSource": "Aktiebolagslagen (2005:551) 25 kap. 13-20 §§",
     "lawUrl": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/aktiebolagslag-2005551_sfs-2005-551/",
     "intro": "This tool walks you through Chapter 25, Secs. 13-17 of the Swedish Companies Act (aktiebolagslagen): the control balance sheet, the control meetings and compulsory liquidation. Based on your answers, it shows which step applies to the company and what follows from it. Personal liability of board members (Secs. 18-20 a) is not assessed.",

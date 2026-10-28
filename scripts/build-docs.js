@@ -28,11 +28,13 @@ function expectedFiles() {
 }
 
 // Returns the paths of generated files whose content on disk differs.
+// Line endings don't count: Git on Windows checks the files out with CRLF.
 function staleFiles() {
+  const lf = (s) => s.replace(/\r\n/g, '\n');
   return Object.entries(expectedFiles())
     .filter(([file, content]) => {
       const full = path.join(root, file);
-      return !fs.existsSync(full) || fs.readFileSync(full, 'utf8') !== content;
+      return !fs.existsSync(full) || lf(fs.readFileSync(full, 'utf8')) !== lf(content);
     })
     .map(([file]) => file);
 }

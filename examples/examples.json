@@ -1,0 +1,12 @@
+[
+  {
+    "id": "chapter-25",
+    "name": "Chapter 25: control balance sheet",
+    "file": "rules.json"
+  },
+  {
+    "id": "alcohol",
+    "name": "Alcohol purchase eligibility",
+    "file": "examples/alcohol-purchase-eligibility.bpmn"
+  }
+]
